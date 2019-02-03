@@ -1,0 +1,1444 @@
+%\VignetteIndexEntry{cbsem}
+%\VignetteEngine{R.rsp::tex}
+%\VignetteEncoding{UTF-8}
+
+\documentclass[a4paper]{article}                   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%   www.r-bloggers.com/how-to-package-vignettes-in-plain-latex/
+%   stackoverflow.com/questions/31037907/how-to-build-a-pdf-vignette-in-r-and-rstudio
+%
+% packages                                           
+\usepackage[utopia]{mathdesign}     
+\usepackage{index}            
+% AMSTEX                        
+\usepackage{amsmath}                     
+\usepackage{amscd}   \usepackage{amsxtra}     
+%\usepackage{amsthm} 
+                                              
+\usepackage{array}                              
+\usepackage{delarray}                         
+\usepackage{dcolumn}                          
+\usepackage{theorem}                           
+\usepackage{enumerate}                         
+\usepackage{multicol}                          
+\usepackage{longtable}     
+ \usepackage{float} 
+\usepackage{booktabs}                          
+                                                
+% SONST                           
+%\usepackage{float}                                                                                                     
+\usepackage{pictexwd}                                                                                                       
+\usepackage{lineno}                                                                                                                
+%\usepackage[dvips]{graphicx}                                                                                                           
+\usepackage{graphicx}                                                                                               
+\usepackage{theorem}                                                                                                                  
+\usepackage{array}                                                                   
+\usepackage{enumerate}    
+\usepackage{alltt}     
+\usepackage{boxedminipage}        
+\usepackage{epstopdf}
+\epstopdfsetup{update} % only regenerate pdf files when eps file is newer                                       
+ 
+
+\theoremstyle{break}
+\theorembodyfont{\rm}
+\theoremheaderfont{\bf}
+ 
+\setlength{\linenumbersep}{-2mm}
+
+\allowdisplaybreaks
+% 
+\newcommand{\var}{\mbox{\rm Var}}
+\newcommand{\cov}{\mbox{\rm Cov}}
+\newcommand{\cor}{\mbox{\rm Corr}}
+\newcommand{\e}{\mbox{E}}
+\newcommand{\p}{\mbox{P}}
+\newcommand{\ve}[1]{\mbox{$\boldsymbol{#1}$}} 
+
+\newcommand{\ma}[1]{\mbox{$\mathbf{#1}$}}
+\newcommand{\subc}{\mbox{\scriptsize c-1}}
+\newcommand{\subx}{{\text{\scriptsize \ve{x}}}}
+\newcommand{\suby}{{\text{\scriptsize \ve{y}}}}
+\newcommand{\subxi}{{\text{\scriptsize \ve{\xi}}}}
+\newcommand{\subeta}{{\text{\scriptsize \ve{\eta}}}}
+\newcommand{\subzeta}{{\text{\scriptsize \ve{\zeta}}}}
+\newcommand{\subdelta}{{\text{\scriptsize \ve{\delta}}}}
+\newcommand{\subepsilon}{{\text{\scriptsize \ve{\varepsilon}}}}
+\newcommand{\subpsi}{{\text{\scriptsize \ve{\psi}}}}
+\newcommand{\subphi}{{\text{\scriptsize \ve{\phi}}}}
+
+\newtheorem{example}{Example}[section]
+ 
+\setlength{\oddsidemargin}{-0.05cm}
+\setlength{\evensidemargin}{-0.05cm}
+\setlength{\topmargin}{-1cm}
+%\setlength{\headheight}{0.5cm}
+%\setlength{\headsep}{-2.5cm}
+\setlength{\textheight}{20cm}
+\setlength{\textwidth}{13.5cm}
+ 
+\begin{document}
+
+\title{Composite-Based Structural Equation Models}   
+\date{\today}
+\author{Rainer Schlittgen}
+
+\maketitle 
+ 
+ 
+\section*{Introduction}
+\label{intro}
+
+
+The paper gives the background of the R package \texttt{cbsem}. It descibes the computation of covariance matrices of the indicators, the simulation, estimation and segmentation of compo\-site-based structural equation models and gives examples  for all methods described. 
+
+Two complementary schools have come to the fore in the field of Structural Equation Modelling (SEM): factor-based SEM and composite-based SEM. The first approach has been developed around Karl Jöreskog and the second one around Herman Wold  (Wold  1983, Loh\-m\"{o}l\-ler 1989) under the name "PLS" (Partial Least Squares). Hwang and Takane have proposed an other composite-based SEM method named Generalized Structured Component Analysis  (Hwang and Takane 2004). Factor-based SEM is usually used with an objective of model validation and needs a large sample. Composite-based SEM is mainly used for score computation and can be carried out on very small samples. Composite-based structural equation models consider linear combinations of the observables or indicators as composites. Through them the relations between blocks of indicators are modeled. 
+
+SEMs are visualized with the help of path diagrams. The relations between the variables are shown by arrows pointing to the dependent variables. Composite-based SEMs deal mainly with arrows pointing from the indicators to the composites. These are the weights. The relations are called formative. Sometimes a factor analysis point of view is incorporated, too. Then arrows pointing in the other direction are also present. They are called lodings according to the factor analysis convenience. The corresponding relations are called reflective. 
+
+The setting is always given by two blocks of indicators. The correletion structure between this two blocks is modeled by the composites built from the indicators. Three scenarios are dealt with. One has only arrows pointing from the indicators to the composites, in the second all arrows pointing into the other direction are also present and in the third such arrows are present only for  one part of indicators.  
+
+This paper  brings together what I did in the field of composite-based SEMs. I was introduced to this field by a colleague, Prof. Dr. Christian Ringle, who became a good friend. After the first project he fed me with new problems. At the end I was  involved in this area over fifteen years. Through the time my point of view evolved to the present one. This is presented here. The most challenging problem was to develop a suitabe method to simulate composite-based SEMs with loadings. Weights and loadings show some interplay which is mostly neglegted.  
+
+ \tableofcontents
+ 
+\newpage
+
+\mbox{}
+
+\newpage
+ 
+ 
+ 
+\section{The GSC model}
+ 
+\subsection{The composite-based model}
+\label{sec:2}
+
+Let two sets of variables be given, $\ve{x}=(X_1,\dots,X_{p_1})$  and $\ve{y}=(Y_1,\dots,Y_{p_2})$. All the variables should be standardised, $\e(X_i)=0$ and $\var(X_i)=1$, with the same applying to $Y_i$.  The relationships between these two sets of variables are modelled via composites, the linear combinations of the $\ve{x}$ and $\ve{y}$ indicator variables. The composites of the $\ve{x}$ variables are  denoted by $\xi$. These are the exogenous variables that do not depend on any other composite. Each of the composites $\eta$, which result from the  $\ve{y}$ indicator variables, is endogenous, depending on at least one other composite, regardless of whether it is a $\xi$ or another $\eta$. The number of exogenous composites is $q_1$, while the number of endogenous composites is $q_2$.
+
+The observed variables are indicators of their composites. Each composite should have its own set of indicators.  The indicators of $\xi_g$ build a subvector $\ve{x}_g$ of $\ve{x}$, $g=1,\dots,q_1$. The corresponding  weights vectors are denoted by $\ma{w}_{g}^{(1)}$.  $\eta_h$ has indicators  $\ve{y}_h$ with wights $\ma{w}_{h}^{(2)}$, $h=1,\dots,q_2$. The parameter vectors are column vectors. The random vectors however are, however, row vectors.  The weights relations are: 
+%
+\begin{subequations}\label{eq:MM}  
+\begin{align}  
+& \hspace{2cm}   \ve{\xi}    =  \ve{x}  \ma{W}_1   
+         \,,  \label{eq:xi} \\
+& \hspace{2cm} \ve{\eta}   = \ve{y} \ma{W}_2    
+ \,, \label{eq:eta}  
+\intertext{with}
+\ma{W}_1  & = \begin{array}({cccc}) 
+                \ma{w}_{1}^{(1)} & \ma{0}           & \hdots  &    \ma{0}          \\      
+                \ma{0}           & \ma{w}_{2}^{(1)} &         &    \ma{0}          \\               
+                \vdots           &                  &         &    \vdots            \\ 
+                \ma{0}           & \ma{0}           & \hdots  &    \ma{w}_{q_1}^{(1)}   \\    
+              \end{array}  ,\quad 
+\ma{W}_2 =          \begin{array}({cccc}) 
+                \ma{w}_{1}^{(2)} & \ma{0}           & \hdots  &    \ma{0}          \\      
+                \ma{0}           & \ma{w}_{2}^{(2)} &         &    \ma{0}          \\               
+                \vdots           &                  &         &    \vdots            \\ 
+                \ma{0}           & \ma{0}           & \hdots  &    \ma{w}_{q_2}^{(2)}   \\    
+              \end{array} \,.   \label{eq:W1W2}          
+\end{align}         
+\end{subequations}  
+%
+Equation \eqref{eq:MM}  formalises the formative part of the model in the structural equation modelling's standard terminology. 
+
+The composites should have unit variances,   $\var(\xi_g)=1$ and $\var(\eta_h)=1$.  Therefore the weights  need  to  be  standardised. They must fulfill $\ma{w}_g^{(1) ^\prime} \ma{\Sigma}_{\subx_g\subx_g}\ma{w}_g^{(1)} = 1$. The same applies to $\ma{w}_h^{(2)}$.
+
+ 
+The structural model  provides the relationships between the two sets of indicators by means of the resulting two sets of composites: 
+\begin{equation} \label{eq:ausgang} 
+   \ve{\eta}   =   \ve{\xi}\ma{\Gamma}^\prime  +  \ve{\eta}\ma{B}^\prime + \ve{\zeta}\,,
+\end{equation} 
+% 
+The matrix $\ma{B}$ can be arranged as a lower triangular with zeros on the diagonal for recursive models. This should be the case here. $\ve{\zeta}$ is a vector of errors.  The errors are presumed to be uncorrelated and also uncorrelated in respect of the other random vectors present. The  formulation with row vectors implies that the transposes of $\ma{\Gamma}$ and $\ma{B}$ appear in  equation \eqref{eq:ausgang}.  
+
+The path coefficients in $\ma{\Gamma}$ and $\ma{B}$ are the parameters of primary interest. They describe the composites' interrelations.The weights are only necessary for model estimation. At most they give some information about the indicators' relative relevance in terms of building the composites. 
+ 
+
+From the structural model' recursiveness, it follows that $(\ma{I} - \ma{B}^\prime)$ is regular and a reduced form of the equation \eqref{eq:ausgang} exists:
+\begin{equation}\label{eq:reducedreflrefl} 
+  \ve{\eta}   = \ve{\xi}\ma{\Gamma}^\prime (\ma{I}-\ma{B}^\prime)^{-1}  + \ve{\zeta}(\ma{I}-\ma{B}^\prime)^{-1}   \,. 
+\end{equation} 
+
+A factor analysis point of view is often  included in a composite-based structural model. In this case, the model comprising equations \eqref{eq:reflreflMM} and \eqref{eq:ausgang} is supplemented with a reflective part:
+%
+\begin{subequations} \label{eq:refleqs}
+\begin{align}   
+  \ve{x} & =  \ve{\xi}\ma{\Lambda}_{\subx}^\prime +  \ve{\delta} \label{eq:refleqs1}\,, \\
+  \ve{y} & =   \ve{\eta}\ma{\Lambda}_{\suby}^\prime +  \ve{\varepsilon} \,. \label{eq:refleqs2}
+\end{align}  
+\end{subequations}
+The matrices of the loadings $\ma{\Lambda}_{\subx}$ and $\ma{\Lambda}_{\suby}$ have the same structure as $\ma{W}_1$ and $\ma{W}_2$.
+Henseler  et al. (2014) state, that in composite-based factor models the covariance matrices of the errors are block diagonal. This makes the difference between factor based SEM's and composite-based factor models, see figure \ref{fig:Factorm}. This assumption is necessary to allow the loadings to be estimated  by means of  multivariate regression. Multivariate regression errors are correlated by the pure method. This is done  especially in the PLS context. In  mode A, PLS estimates  the loadings by means of  multivariate regression.  
+Therefore, the errors $\ve{\delta}$ and $\ve{\varepsilon}$ are allowed to be blockwise correlated. 
+
+\begin{figure}[h]
+\includegraphics[width=8cm]{FactorModel.eps}
+\caption{Contrasting common factor with composite-based factor model  (Henseler et al. 2014)\label{fig:Factorm}}
+\end{figure}
+
+A combination of a formative and a reflective model is also considered. These models are called MIMIC models in structural equation modelling's standard terminology. Only the indicators of endogenous composites have a reflective relation. That means only equation \eqref{eq:refleqs2} is present but not \eqref{eq:refleqs1}.
+
+Models belonging to one of these three scenarios are considered only in this text. They are referenced to as standard scenarios in the following: \\
+$\bullet$ Scenario ff is the formative-formative scenario. Here, no loading is included in the model.  \\ 
+$\bullet$ Scenario rr is the  reflective-reflective scenario. It includes all loadings, namely the ones for the indicators of the exogenous and for the endogenous composites.   \\
+$\bullet$ Scenario fr is the  formative-reflective scenario. Here,  loadings are included only for the indicators of the endogenous composites.   
+
+The reflective-reflective scenario is given formally  by the following set of equations: 
+\begin{subequations}\label{eq:reflreflMM}  
+\begin{align}  
+  \ve{\xi}  & = \ve{x}\ma{W}_1    \label{eq:reflreflMM1} \\
+  \ve{\eta}  & = \ve{y}\ma{W}_2      \label{eq:reflreflMM2}  \\
+  \ve{\eta} & =  \ve{\xi}\ma{\Gamma}^\prime + \ve{\eta}\ma{B}^\prime + \ve{\zeta}     \label{eq:reflreflMM3} \\
+  \ve{x} & =  \ve{\xi}\ma{\Lambda}_{\subx}^\prime +  \ve{\delta}  \label{eq:reflreflMM4} \\
+  \ve{y} & =   \ve{\eta}\ma{\Lambda}_{\suby}^\prime +  \ve{\varepsilon} \,, \label{eq:reflreflMM5}
+\end{align} 
+\end{subequations}   
+
+
+In the formative-reflective scenario subequation \eqref{eq:reflreflMM4} is not present and in the formative-formative both subequations \eqref{eq:reflreflMM4} and \eqref{eq:reflreflMM5} are omitted.
+
+% 
+\subsection{The covariance matrices  of GSC models}
+%
+
+
+We take a constructive point of view when deriving the covariance matrices of the models.  
+We presume that the main parameters to be controlled are 1) the path coefficients;  2) the exogenous composites' correlations; 3) the coefficients of determination for the structural regression relations; and 4) the loadings, if present.
+ 
+\subsubsection{The covariance matrix of the composites}
+\label{sec:3}
+ 
+The path coefficients and the coefficients of determination are related. When path coefficients are of primary concern, the coefficients of determination result from the structural model requiring uncorrelated errors. The covariance matrix of the endogenous composites, $\ma{\Sigma}_{\subeta\subeta}$, can be  determined directly:
+\begin{equation}\label{eq:covetaA}
+\ma{\Sigma}_{\subeta\subeta}  =  (\ma{I} - \ma{B})^{-1}\ma{\Gamma} \ma{\Sigma}_{\subxi\subxi}\ma{\Gamma}^{\prime}(\ma{I} - \ma{B}^{\prime})^{-1}
+ + (\ma{I} - \ma{B})^{-1}\ma{\Sigma}_{\subzeta\subzeta}(\ma{I} - \ma{B}^{\prime})^{-1}
+\end{equation} 
+Here, $\ma{\Sigma}_{\subzeta\subzeta}$ must be computed via nonlinear optimisation.
+\begin{figure}[h]
+\begin{boxedminipage}[c]{12cm}
+\begin{tabular}{l@{}p{10cm}}
+\emph{Step 1: } & Let $\ma{B}, \ma{\Sigma}_{\subxi\subxi}, q_1, q_2$ be given.  \\
+                       & Set a start vector of length $q_2$ for $\ma{\Sigma}_{\subzeta\subzeta}$. \\
+                       & Define a function to compute \\
+                       &\hspace*{5mm} 1. the right hand side of equation \eqref{eq:covetaA}, \\
+                       &\hspace*{5mm} 2. the sum of the squared differences of its diagonal elements and 1. \\
+\emph{Step 2: }    & Deliver the function and the start values to a nonlinear optimization routine.
+\end{tabular}          
+\end{boxedminipage}
+\caption{Nonlinear determination of the matrix $\ma{\Sigma}_{\subzeta\subzeta}$. \label{quasicode1}} 
+\end{figure}
+
+However, when specifying the coefficients of determination a priori, the path coefficients need to be determined accordingly. The computations required  to determine the path coefficients only depend on the composites. 
+
+Consider the structural regression equation for the endogenous composite $\eta_c$ given in \eqref{eq:ausgang}:
+\[
+  \eta_{c} =  \ve{\xi}\ve{\gamma}_c + \ve{\eta}_{1:c-1}\ve{\beta}_{c,1:c-1}^\prime +\zeta_c , \quad 1 \le c \le q_2, 
+\] 
+Here,  $\ve{\beta}_{c,1:c-1}$ is the row vector consisting of the first $c-1$ elements of row $c$  of $\ma{B}$.  $\ve{\eta}_{1:c-1}$ is the vector of the endogenous latent variables related to rows $1$ to $c-1$ of $\ma{B}$. The coefficients of the composites that do  not  appear in the regression equation of $\eta_c$ are zero. 
+  
+This, together  with the covariance matrix $\ma{\Sigma}_{(q_1+c-1),(q_1+d-1)}$ of $(\ve{\xi},\ve{\eta}_{1:c-1})$ and $(\ve{\xi},\ve{\eta}_{1:d-1})$, results in:
+%
+\begin{subequations}\label{eq:coveta}
+\begin{align}  
+\hspace*{-2mm}   \var(\eta_c)  & = 
+   (\ve{\gamma}_c,\ve{\beta}_{c,1:c-1})\ma{\Sigma}_{(q_1+c-1),(q_1+c-1)}(\ve{\gamma}_c,\ve{\beta}_{c,1:c-1})^\prime 
+   + \sigma_{\zeta_c}^2  \,, \label{eq:coveta1} \\
+\hspace*{-2mm} \cov(\eta_c, \ve{\xi}) & = (\ve{\gamma}_c,\ve{\beta}_{c,1:q_1+c-1})\ma{\Sigma}_{(q_1+c-1),q1}  ,\label{eq:coveta2} \\ 
+\hspace*{-2mm} \cov(\eta_c, \eta_d) & = (\ve{\gamma}_c,\ve{\beta}_{c,1:c-1})\ma{\Sigma}_{(q_1+c-1),(q_1+d-1)}, 
+               \quad  1 \le d \le c  .  \label{eq:coveta3}
+\end{align}   
+\end{subequations}
+%
+These equations provide the relations required to compute the composites' covariance matrix. This is all one needs
+when the simulation is focussed on the  the path coefficients. 
+
+One would usually choose $\ma{B}$ if one wants a specific vector $\ve{r}^2=(R^2_1,\dots,R^2_{q_2})$ of the coefficients of determination for the structural regressions.  
+Thereafter, the coefficient of determination for the regression of $\eta_c$ on $(\ve{\xi},\ve{\eta}_{1:c-1})$, which is based on \eqref{eq:coveta3}, follows with the assumption $\var(\eta_c)=1$:
+\begin{equation}\label{eq:bet12sigz}
+ R^2_{c} = 1-\sigma_{\zeta_c}^2  =  
+  (\ve{\gamma}_c,\ve{\beta}_{c,1:c-1})\ma{\Sigma}_{(q_1+c-1),(q_1+c-1)}(\ve{\gamma}_c,\ve{\beta}_{c,1:c-1})^\prime \,.
+\end{equation}
+%
+One has to work through matrix $\ma{B}$ from row $q_1+1$ to the last one to modify the path coefficient to reach the desired coefficients of determination. The first part of the covariance matrix is given by $\ma{\Sigma}_{\subxi\subxi}$. 
+After the modification of the path coefficients in row $q_1+c$ of $\ma{B}$, the covariance matrix of the composites must be augmented by row and column $c$ before the coefficients of row $c+1$ can be modified. 
+
+Initially, choose  the row vector  $\ve{\beta}_{q_1+c}$ as preferred. Subsequently, this preliminary value is multiplied by a factor $\tau$ which makes \eqref{eq:bet12sigz} hold true:
+\begin{equation} 
+ \tau = 
+ \sqrt{\dfrac{R^2_{c}}{((\ve{\gamma}_c,\ve{\beta}_{c,1:c-1})\ma{\Sigma}_{(q_1+c-1),(q_1+c-1)}
+                                           (\ve{\gamma}_c,\ve{\beta}_{c,1:c-1})^\prime}}\,.
+\end{equation}  
+
+\begin{example} \label{bsp:1.2.1}
+We illustrate the determination of the covariance matrix and the path coefficients in the case of a given vector $\ve{r}^2$. For this purpose we consider the structural model
+\[
+ (\eta_1,\eta_2,\eta_3) 
+   =  (\xi_1,\xi_2,\xi_3)\begin{array}({ccc})
+                               \gamma_{11} & 0    &  0  \\   
+                               \gamma_{12} & \gamma_{22} &  0  \\   
+                                0   & \gamma_{23}  &  0   \\   
+                          \end{array}   
+      + (\eta_1,\eta_2,\eta_3) \begin{array}({ccc}) 
+                                        0   & 0    &  \beta_{31}   \\   
+                                        0   & 0    &  \beta_{32}   \\   
+                                        0   & 0    &  0    \\   
+                          \end{array}         
+                           + (\zeta_1,\zeta_2,\zeta_3) .    
+\]
+The covariance matrix of the exogenous composites and the coefficients of determination of the regressions for the endogenous composites are set to: 
+\[
+    \ma{\Sigma}_{\subxi\subxi} = \begin{array}({ccc}) 
+                                                       1 & 0.4    &  0.1  \\   
+                                                       0.4 & 1 &  0.3  \\   
+                                                       0.1   & 0.3  &  1   \\     
+                                              \end{array}    , \quad
+     \ve{r}^2 = \begin{array}({ccc}) 0.8  & 0.7  & 0.6 \end{array}        .                                      
+\]
+The preliminary choice of the path coefficients is $\gamma_{11} = \gamma_{22} =  0.6$, $\gamma_{12} = \gamma_{23} =  0.5$, $\beta_{31} = \beta_{32} =  0.4$.
+
+First, the regression model $\eta_1 = \gamma_{11}\xi_1 +  \gamma_{12}\xi_2 + \zeta_1$ is considered. Using 
+$\var(\eta_1) = \gamma_{11}^2 + \gamma_{12}^2 + 2\gamma_{11}\gamma_{12}\cov(\xi_1,\xi_2)+ \var(\zeta_1)= 1$ one obtains $\var(\zeta_1)=0.15$. In order to achieve 
+$R^2_1= 1-\var(\zeta_1) = 0.8$ the coefficients $\gamma_{11}, \gamma_{12}$ are multiplied by $\tau=\sqrt{0.8/0.85}$.
+The second regression model $\eta_2 = \gamma_{22}\xi_2 +  \gamma_{23}\xi_3 + \zeta_2$ results  in $\var(\zeta_2)=0.21$. The resulting factor is $\tau=\sqrt{0.7/0.79}$. Up to this point the modified path coefficients are:
+$\gamma_{11} =0.582$,  $\gamma_{12} = 0.485$, $\gamma_{22} = 0.565$, $\gamma_{23} =  0.471$.
+
+The covariance matrix of $(\ve{\xi},\eta_1,\eta_2)$ must be determined to compute  the factor for the third regression.  
+Formulas  \eqref{eq:coveta}  result in: 
+\begin{align*} 
+    \cov(\eta_1,\ve{\xi}) & = \begin{array}({ccc})0.776 & 0.718 & 0.204 \end{array} \\
+    \cov(\eta_2,\ve{\xi}) & = \begin{array}({ccc})0.273 & 0.706 & 0.640 \end{array} \\
+    \cov(\eta_1,\eta_2)   & = \begin{array}({ccc})  0.565 & 0.471 & 0 \end{array}
+                            \begin{array}({cccc}) 
+                              1   & 0.4 &  0.1 & 0.776  \\   
+                              0.4 & 1   &  0.3 & 0.718 \\   
+                              0.1 & 0.3 &  1   & 0.204 \\     
+                                              \end{array}    
+                           \begin{array}({c}) 0 \\ 0.565 \\ 0.471 \\ 0 \end{array} = 0.501 \,.
+\end{align*}  
+With this given covariance, one should proceed as with the first two regressions. This gives the factor $\tau=\sqrt{0.6/0.346}$. Subsequently the matrices $\ma{\Gamma}$ and  $\ma{B}$ are:
+\[
+    \ma{\Gamma}  = \begin{array}({ccc})
+                                            0.582 & 0.485  & 0    \\
+                                            0        &  0.565 & 0.471 \\ 
+                                            0 & 0 & 0   
+                                \end{array} \,,
+          \quad    
+    \ma{B}  = \begin{array}({cccccc})
+           0 & 0 & 0 \\
+           0 & 0 & 0 \\ 
+           0.447 & 0.447 & 0  
+     \end{array} \, .      
+\]
+Finally, the complete covariance matrix of the composites is computed, again using formulas \eqref{eq:coveta}:
+\[
+  \begin{array}({cccccc}) 
+   1.000 & 0.4   &  0.1    & 0.776 & 0.273  & 0.469  \\   
+   0.4   & 1.000 &  0.3    & 0.718 & 0.706  & 0.637  \\   
+   0.1   & 0.3   &  1.000  & 0.204 & 0.640  & 0.377  \\   
+   0.776 & 0.718 & 0.204   & 1.000 & 0.501  & 0.671  \\
+   0.273 & 0.706 & 0.640   & 0.501 & 1.000  & 0.671  \\
+   0.469 & 0.637 & 0.377   & 0.671 & 0.671  & 1.000  \\
+  \end{array}  
+\]
+\end{example}
+
+
+
+
+\subsubsection{The covariance matrix of the   indicators in scenario ff}
+\label{sec:4}
+
+
+Scenario ff is the formative model. From the model equations we derive
+\begin{subequations}\label{eq:covmff}
+\begin{align}
+\ma{\Sigma}_{\subxi\subxi} & = \ma{W}_{1}^\prime\ma{\Sigma}_{\subx\subx}\ma{W}_{1}   \label{eq:covmff1} \\
+\ma{\Sigma}_{\subeta\subeta} & = \ma{W}_{2}^\prime\ma{\Sigma}_{\suby\suby}\ma{W}_{2}   \label{eq:covmff2} \\
+\ma{\Sigma}_{\subeta\subeta} & =  (\ma{I} - \ma{B})^{-1}\ma{\Gamma} \ma{\Sigma}_{\subxi\subxi}\ma{\Gamma}^{\prime}(\ma{I} - 
+\ma{B}^{\prime})^{-1}
+ + (\ma{I} - \ma{B})^{-1}\ma{\Sigma}_{\subzeta\subzeta}(\ma{I} - \ma{B}^{\prime})^{-1}
+ \label{eq:covmff3}   
+\end{align} 
+\end{subequations} 
+
+
+With a choice of $\ma{\Sigma}_{\subxi\subxi}$, the covariance matrix of the $\ve{x}$-indicators and the  weights $\ma{W}_1$ must be determined so that \eqref{eq:covmff1} is fulfilled.    
+
+One has a great degree of freedom  to choose $\ma{\Sigma}_{\subx\subx}$  and the standardised weights, resulting in a given $\ma{\Sigma}_{\subxi\subxi}$. First, each block of indicators of the different exogenous composites can be dealt with separately,  with only the standardisation of the composites needing to be ensured. This means that $\xi_g = \ve{x}_g\ma{w}_g$,   $\ma{w}_g^\prime \ma{\Sigma}_{\subx_g\subx_g}\ma{w}_g=1$ must be fulfilled. This can, for example,  be achieved by setting $\ma{\Sigma}_{\subx_g\subx_g}$ as the identity matrix and choosing the weights vectors  such that $\ma{w}_g^\prime \ma{w}_g=1$. However, this covariance matrix can be chosen arbitrarily and subsequently scaled to fulfil equation \eqref{eq:covmrr1}.
+If the exogenous composites are  assumed to be uncorrelated, one uses $\ma{\Sigma}_{\subx_g\subx_h} = \ma{0}$ for $g \ne h$. If  two  composites  are   correlated,  the correlations between the different blocks' indicators must be set appropriately. An easy way of doing this is to preset   $\ma{\Sigma}_{\subx_g\subx_h}$ and to scale it such that $\ma{w}_g^\prime \ma{\Sigma}_{\subx_g\subx_h}\ma{w}_h = \sigma_{\xi_g\xi_h}$. Becker,  Rai, and Rigdon (2013) first used this approach  in a specific situation. 
+
+In the next step, $\ma{B}$ is given, or must be determined according to the given vector $\ve{r}^2$ of the coefficients of determination (see section \ref{sec:3}). Thereafter it is possible to obtain $\ma{\Sigma}_{\subeta\subeta}$ as  described in section \ref{sec:3}. 
+$\ma{\Sigma}_{\suby\suby}$ and the weights $\ma{W}_2$ are determined in the same way as the covariance matrix of the $X$-indicators, using
+\eqref{eq:covmff2}. 
+    
+The covariances of the exogenous and the endogenous composites can be used to determine $\ma{\Sigma}_{\subx\suby}$. First, from \eqref{eq:reflreflMM}   it follows:
+\begin{equation}
+   \ma{\Sigma}_{ \subxi\subeta} = \ma{W}_{1}^\prime \ma{\Sigma}_{ \subx\suby} \ma{W}_{2}
+\end{equation}
+whereas \eqref{eq:reducedreflrefl} leads to:
+\begin{equation}
+  \ma{\Sigma}_{\subxi \subeta} = \ma{\Sigma}_{\subxi \subxi}\ma{\Gamma}^\prime(\ma{I}-\ma{B}^\prime)^{-1}\,.
+\end{equation} 
+The combination of these two equations provides a necessary condition that must be fulfilled:
+\begin{equation}\label{eq:covxy}
+ \ma{W}_{1}^\prime \ma{\Sigma}_{ \subx\suby} \ma{W}_{2} 
+ = \ma{\Sigma}_{\subxi \subxi}\ma{\Gamma}^\prime(\ma{I}-\ma{B}^\prime)^{-1}\,.
+\end{equation}
+
+
+Choosing the covariance matrix $\ma{\Sigma}_{ \subx\suby}$ as
+\begin{equation}  
+ \ma{\Sigma}_{ \subx \suby} =  
+   \ma{\Sigma}_{\subx\subx}\ma{W}_{1}\ma{\Gamma}^\prime  (\ma{I}-\ma{B}^\prime)^{-1}
+   \ma{\Sigma}_{ \subeta \subeta}^{-1}\ma{W}_{2}^\prime \ma{\Sigma}_{ \suby \suby} 
+\end{equation}
+makes \eqref{eq:covxy}  hold true. To reach this result, one has to insert this expression into the left-hand side of \eqref{eq:covxy} and  to consider the relations for the covariance matrices of the composites.
+ 
+
+
+A quasi-code for the computation of the covariance matrices of the indicators is given in figure \ref{fig:covmats}.
+
+\begin{figure}[h]
+\begin{boxedminipage}{12cm} 
+\begin{tabular}{l@{}p{10cm}}
+\emph{Step 1: } 
+& Choose  $\ma{\Sigma}_{\subxi \subxi}$, $\ma{B}$, $\ve{r}^2=(R^2_{1},\dots,R^2_{q_2})$ such that for row $j$ of $\ma{B}$ 
+\newline
+                    $R_j^2=\ma{b}_{j}\var((\ve{\xi},\ve{\eta}))\ma{b}_{j}^\prime$   \\[1ex] 
+\emph{Step 2: } & Choose  $\ma{W}_1$ and $\ma{\Sigma}_{\subx\subx}$ such that
+     $\ma{\Sigma}_{\subxi\subxi} = \ma{W}_{1}^\prime\ma{\Sigma}_{\subx\subx}\ma{W}_{1} $ \\[1ex] 
+\emph{Step 3: } &  Use the method of section \ref{sec:3} or \eqref{eq:covetaA} to determine $\ma{\Sigma}_{\subeta\subeta}$ \\  
+\emph{Step 4: } &  Choose $\ma{\Sigma}_{\suby\suby}$ and  $\ma{W}_2$ such  that  $\ma{\Sigma}_{\subeta\subeta} = \ma{W}_2^\prime\ma{\Sigma}_{\suby\suby}\ma{W}_2 $   \\[1ex] 
+\emph{Step 5: } &  $\ma{\Sigma}_{ \subx \suby} =  \ma{\Sigma}_{\subx\subx}\ma{W}_{1}\ma{\Gamma}^\prime  
+(\ma{I}-\ma{B}^\prime)^{-1}\ma{\Sigma}_{ \subeta \subeta}^{-1}\ma{W}_{2}^\prime \ma{\Sigma}_{ \suby \suby}$  
+\end{tabular}  
+\end{boxedminipage}
+
+\caption{Determination of the covariance matrices of the indicators for formative models}
+\label{fig:covmats}
+\end{figure}
+
+
+\begin{example} \label{bsp:1.2.2}
+Continuing the example \ref{bsp:1.2.1} shows how to determine the covariance matrix of the indicators. With the results already obtained, step 2 of figure \ref{fig:covmats} should be taken next. Let 
+\[
+    \ma{K} = \begin{array}({ccc}) 1 & 0.3 & 0.2 \\  0.3 & 1 & 0.2 \\ 0.2 & 0.2 & 1 \end{array}     \;  
+   \ma{\Sigma}_{\subx\subx} 
+                = \begin{array}({ccc}) \ma{K}  & \ma{1}  & \ma{1}  \\  \ma{1}  & \ma{K}  & \ma{1}  \\ \ma{1}  & \ma{1}  & \ma{K}  \end{array} 
+    \; \;  \text{and} \; \; 
+     \ma{W}_1 =  \begin{array}({ccc}) \ma{w}_1  & \ma{0}  &  \ma{0} \\   \ma{0}  &  \ma{w}_2  &  \ma{0}  \\  \ma{0}  &  \ma{0}  &  \ma{w}_3  \end{array}  
+\]
+where {\bf 1} is a 3$\times$3 matrix of ones, $\ma{w}_1 = (0.4,0.5,0.6)^\prime$ and $\ma{0}$ a vector of zeros. $\ma{w}_2$ and $\ma{w}_3$ are chosen suitably.
+
+First, $\ma{W}_1$ has to be standardised. This is done by computing $\ma{w}_1/\sqrt{f}$ with $f = \ma{w}_1^\prime \ma{K}\ma{w}_1 = 1.106$, and by substituting the new vector for the old $\ma{w}_1$.  $\ve{w}_2$ and $\ma{w}_3$ are standardised analogously. Subsequently,  blocks of ones in $\ma{\Sigma}_{\subx\subx}$ have to be changed such that the covariances in $\ma{\Sigma}_{\subxi\subxi}$ are  recovered. For example, to obtain $\sigma_{13} = 0.469$, the ones in the first three rows and the last three columns are modified to $0.469/( \ma{w}_1^\prime \ma{1} \ma{w}_3)$. 
+
+The matrix $\ma{W}_2$ is dealt with analogously by using $\ma{\Sigma}_{\subeta\subeta}$. Finally, $\ma{\Sigma}_{\subx\suby}$ is computed using equation \eqref{eq:covxy} and the complete covariance matrix is built.
+\end{example}
+
+
+\subsubsection{The covariance matrix of the indicators in scenario rr} 
+\label{sec:5} 
+
+Scenario rr is the  one with composite-based factor models. 
+The equations  \eqref{eq:reflreflMM} and \eqref{eq:reducedreflrefl} lead to: 
+\begin{subequations}\label{eq:covmrr}
+\begin{align}
+\ma{\Sigma}_{\subxi\subxi} & = \ma{W}_{1}^\prime\ma{\Sigma}_{\subx\subx}\ma{W}_{1}  \label{eq:covmrr1} \\
+\ma{\Sigma}_{\subeta\subeta} & = \ma{W}_{2}^\prime\ma{\Sigma}_{\suby\suby}\ma{W}_{2} \label{eq:covmrr2} \\
+\ma{\Sigma}_{\subx\subx} & = \ma{\Lambda}_{\subx}\ma{\Sigma}_{\subxi\subxi}\ma{\Lambda}_{\subx}^\prime
+                                + \ma{\Sigma}_{\subdelta\subdelta} \label{eq:covmrr3} \\
+\ma{\Sigma}_{\subeta\subeta} & =  (\ma{I} - \ma{B})^{-1}\ma{\Gamma} \ma{\Sigma}_{\subxi\subxi}\ma{\Gamma}^{\prime}(\ma{I} - \ma{B}^{\prime})^{-1}
+ + (\ma{I} - \ma{B})^{-1}\ma{\Sigma}_{\subzeta\subzeta}(\ma{I} - \ma{B}^{\prime})^{-1}
+ \label{eq:covmrr4}  \\      
+\ma{\Sigma}_{\suby\suby} & = \ma{\Lambda}_{\suby}\ma{\Sigma}_{\subeta\subeta}\ma{\Lambda}_{\suby}^\prime
+                                + \ma{\Sigma}_{\subepsilon\subepsilon} \label{eq:covmrr5}  \\
+\ma{\Sigma}_{\subx\suby} & = \ma{\Lambda}_{\subx}\ma{\Sigma}_{\subxi\subxi}\ma{\Gamma}^\prime (\ma{I}-\ma{B}^\prime)^{-1}\ma{\Lambda}_{\suby}^\prime  \, . \label{eq:covmrr6}
+\end{align} 
+\end{subequations} 
+
+The following  additional equations can be deduced from \eqref{eq:covmrr}:
+\begin{subequations} \label{eq:covmrrcheck}
+\begin{align}  
+\ma{\Sigma}_{\subxi\subxi}  &  = 
+\ma{W}_{1}^\prime\left( \ma{\Lambda}_{\subx}\ma{\Sigma}_{\subxi\subxi}\ma{\Lambda}_{\subx}^\prime 
+                                    + \ma{\Sigma}_{\subdelta\subdelta} \right)\ma{W}_{1}   \label{eq:covmrrcheck1}\,, \\
+\ma{\Sigma}_{\subeta\subeta}  &  = 
+\ma{W}_{2}^\prime\left(   \ma{\Lambda}_{\suby}\ma{\Sigma}_{\subeta\subeta}\ma{\Lambda}_{\suby}^\prime 
+                                    + \ma{\Sigma}_{\subepsilon\subepsilon}\right) \ma{W}_{2}     \,.  \label{eq:covmrrcheck2}
+\end{align} 
+\end{subequations}
+%
+ 
+The conditions \eqref{eq:covmrrcheck} can not be satisfied in many cases when the errors $\ve{\delta}$ and $\ve{\varepsilon}$ are supposed to be uncorrelated. Then the model has intrinsic inconsistencies and can not be used as a model for a real application.  
+
+We allow blockwise correlated error  vectors $\ve{\delta}$ and $\ve{\varepsilon}$ as was stated above.  This may be seen as avoiding inconsistency of the models  by introducing additional parameters. It would follow the spirit of John von Neumann's statement:  'With four parameters I can fit an elephant, and with five I can make him wiggle his trunk.' (Dyson 2004).
+ 
+The following highlights the problem's relevance: In seven of the 15 examples taken from literature, the  uncorrelated error vectors $\ve{\delta}$ and $\ve{\varepsilon}$ did not allow for determing weights satisfying \eqref{eq:covmrrcheck}. Columns three and four of Table \ref{tab:vergl1} give the values of the nonlinear optimisation criterion used to determine weights such that \eqref{eq:covmrrcheck1} and \eqref{eq:covmrrcheck1} were satisfied.  It is concluded that no weights exist if the optimisation resulted in a value  not small enough, greater than 0.01, say.  
+
+\begin{table}[h]
+\caption{Model check for examples from literature \label{tab:vergl1} } 
+\begin{tabular}{r@{\;}c@{\;}l@{\;}lc@{\;}cl}
+\cline{1-7}
+          &  number          &   \multicolumn{4}{@{\;}c}{values of optimisation}     &  \\
+No.     & of $\beta$'s       &   \multicolumn{4}{@{\;}c}{criterion}                  &   \\ 
+          &  and $\lambda$'s &  \multicolumn{2}{@{\;}c}{uncor. error} & \multicolumn{2}{@{\;}c}{cor. error} & Source      \\ 
+\noalign{\smallskip}\cline{1-7}\noalign{\smallskip} 
+1  & 2/9   &  0      & 0.0399 & 0  & 2e-12 & {\small Hwang et al. (2010)}   \\  
+2  & 2/12  &  0.0241 & 5e-32  &  2e-11 & 1e-12  & {\small  Aguirre-Urreta et al. (2013)}  \\  
+3  & 2/12  &  0.0026 & 5e-32  & 1e-12 & 1e-12& {\small Sanchez  (2013)} \\ 
+4  & 2/12  &  0.0026    & 5e-32 & 2e-12 & 2e-13 & {\small Chin \& Newsted (1999)}   \\
+5  & 3/21  &  5e-32  & 0.0164 &  1e-12 & 6e-06  & {\small Bergami \& Bagozzi (2000)}   \\
+6  & 3/18  &  0      & 0.0036 & 2e-12 & 4e-11  & {\small Eberl \& v. Mitschke (2006)}   \\
+7  & 4/12  &  0.0045 & 0.010  & 2e-12 & 7e-12 & {\small Qureshi \&  Compeau (2009)}   \\ 
+8  & 4/30  &  5e-32  & 0.0017 &  1e-12 & 1e-05  & {\small Lu et al.  (2011)}   \\
+9  & 4/20  &  0.0256 & 0.0078 & 4e-11 & 6e-12  &  {\small Dijkstra \& Henseler  (2015)}    \\
+10 & 4/21  &  0.0008 & 0.0006 &  0.0002 & 7e-12  & {\small Albers \& Hildebrandt (2006)}   \\ 
+11 & 6/28  &  0      & 0.0224 &  2e-09 & 1e-10  & {\small Chin \& Newsted (1999)}   \\
+12 & 7/42  &  1e-31  & 0.0184 & 3e-13 & 4e-06    & {\small Aguirre-U. \& R\"{o}nkk\"{o} (2017)}   \\ 
+13 & 9/24  &  0      & 0.7031 & 5e-13 & 2e-09     & {\small Reinartz et al. (2009)l}   \\ 
+14 & 9/23  &  5e-32  & 0.0568 & 3e-15 & 9e-09  & {\small Tenenhaus (2008)}   \\
+15 & 10/28 &  0.0040 & 0.0515 & 1e-11 & 5e-09 & {\small Hair et al. (2017)}   \\ 
+\noalign{\smallskip}\cline{1-7} 
+\end{tabular}  
+\end{table}
+
+
+
+\subsubsection{The covariance matrix of the indicators in scenario fr} 
+
+This scenario is a mixture of the two scenarion already investigated. The covariance matrix of the indicators is determined therefore by following first the description of scenario ff and then that of scenario rr. This gives
+\[
+    \ma{\Sigma}_{\subx\subx} \quad \text{with} \quad \ma{\Sigma}_{\subxi\subxi} = \ma{W}_1^\prime\ma{\Sigma}_{\subx\subx}\ma{W}_1
+\]
+and
+\[
+    \ma{\Sigma}_{\suby\suby} = \ma{\Lambda}_y \ma{\Sigma}_{\subeta\subeta}\ma{\Lambda}_y^\prime + \ma{\Sigma}_{\subepsilon\subepsilon} \,.
+\]
+As in scenario rr, the errors $\ve{\varepsilon}$ are supposed to be blockwise correlated. 
+
+The crosscovariance matrix of $\ve{x}$ and $\ve{y}$ can be derived from the set of equations describing this scenario:
+\[
+     \ma{\Sigma}_{\subx\suby} = \ma{\Sigma}_{\subx\subx}\ma{W}_1\ma{\Gamma}^\prime(\ma{I}-\ma{B}^\prime)^{-1}\ma{\Lambda}_y^\prime \,.
+\]
+ 
+\section{Simulation of  GSC models} 
+ 
+The covariance matrix can be used to simulate a data set. To do so,  principal-components factorisation (or any factorisation, for that matter) is performed on the population correlation matrix that is to underlie the random numbers.  One random number is generated for each component to generate a multivariate random vector; each random variable is defined as the sum of the products of the variable's component loadings and the random number corresponding to each of the components. The data are normally distributed if the independent random numbers originate from a normal distribution.
+
+It is descibed in section 2.3 how to determine the correlation matrix of the indicators in scenario ff.  
+One has to ensure that the correlation matrix is positive definite to be used  for simulation.
+
+The weights are not required in scenario rr. But the parameters used to simulate a model must obviously be chosen  such that both  relations \eqref{eq:covmrrcheck1} and \eqref{eq:covmrrcheck2} hold true. In other words, the chosen parameters can only be used, if  sets of standardised weights can be found that fulfill these relations . But the determination of the correlated errors turned out to  result often in non positve definite covariance matrices which can not be factorized.
+
+The following alternative is possible due to the blockwise nature of  correlation matrices. The model is simulated with diagonal covariance matrices $\ma{\Sigma}_{\subdelta\subdelta}$ and $\ma{\Sigma}_{\subepsilon\subepsilon}$. This will affect the weights but should  not affect the loadings and the path coefficient of simulated model. 
+ 
+ 
+A quasicode for performing simulations of a composite-based factor model is given in figure \ref{fig:covmats2}.
+
+\begin{figure}[h]
+\begin{boxedminipage}{12cm} 
+\begin{tabular}{l@{}p{10cm}}
+\emph{Step 1: } 
+& Choose  $\ma{\Sigma}_{\subxi \subxi}$, $\ma{B}$, $\ve{r}^2=(R^2_{1},\dots,R^2_{q_2})$ such that for row $j$ of $\ma{B}$ 
+\newline
+                    $R_j^2=\ma{b}_{j}\var((\ve{\xi},\ve{\eta}))\ma{b}_{j}^\prime$   
+\newline
+    Choose loading matrices $\ma{\Lambda}_\subx$, $\ma{\Lambda}_\suby$.                      \\[1ex]  
+\emph{Step 2: } & Determine $\ma{\Sigma}_{\subx\subx}$ and $\ma{\Sigma}_{\subdelta\subdelta}$ according \eqref{eq:covmrr3} such that the first one has unit diagonal.  \\[1ex]  
+\emph{Step 3: } &  Use the method of section \ref{sec:3} or equation \eqref{eq:covetaA} to determine $\ma{\Sigma}_{\subeta\subeta}$ \\[1ex]   
+\emph{Step 4: } & Determine $\ma{\Sigma}_{\suby\suby}$ and $\ma{\Sigma}_{\subepsilon\subepsilon}$ according \eqref{eq:covmrr5}  such that the first one has unit diagonal.  \\[1ex]    
+\emph{Step 5: } & Compute the crosscovariance matrix $\ma{\Sigma}_{\subx\suby}$ by using \eqref{eq:covmrr6}.  \\[1ex] 
+\emph{Step 6: } & Built the covariance matrix of the indicators from its parts.\\[1ex] 
+\emph{Step 7: } & Compute a factorisation of the covariance matrix and multiply it from the left with a suitably sized matrix of independent random numbers. 
+\end{tabular}  
+\end{boxedminipage} 
+\caption{Determination of the covariance matrices of the indicators for composite-based factor models}
+\label{fig:covmats2}
+\end{figure}
+
+\begin{example}
+An simple example given in Sanchez (2013) is considered. It has two exogenous composites, Attac and Defense and one endogenous, Success. Each has four idicators. The paper states also the values of the path coefficients and the loadings. They are used to compute the covariance matrices. The resulting covariance matrix of the indicators does  not allow a solution of the critical equations. Nevertheless \eqref{eq:covmrr3} \eqref{eq:covmrr5} and \eqref{eq:covmrr6} are used to built the covariance matrix to be used for simulation.  The resulting covariance matrix is positve definite. Random samples can be generated with it.  
+
+\linenumbers*[1] 
+\begin{verbatim}
+  library(cbsem) 
+  B <- matrix(c(0,0,0,0,0,0,0.76, -0.28,0),3,3,byrow=T)     
+  Sxixi <- matrix(c( 1, -0.47, -0.47, 1),2,2) 
+  indicatorx <- c(1,1,1,1,2,2,2,2)                  
+  indicatory <- c(1,1,1,1)
+  lambdax <- c(0.83,0.84,0.86,0.94,-0.89,-0.75,0.88,0.48)
+  lambday <- c(0.94,0.97,0.89,0.78)  
+  out <- gscmcov(B,indicatorx,indicatory,lambdax,lambday,wx=NULL,
+                             wy=NULL,Sxixi,R2=NULL)   
+  eigen(out$S,only.values=T)
+  C <- chol(out$S)  
+  data <- matrix(rnorm(50*12),50,12)%*%C
+\end{verbatim}
+\nolinenumbers 
+\end{example} 
+
+
+There are several suggestions for generating data from nonnormal distributions with preset properties. Vale and Maurelli (1983) extended the Fleishman (1978) method to generate multivariate random numbers with specified intercorrelations and univariate means, variances, skewness   values, and kurtoses. First, they produce a suitably sized matrix of independent, normally distributed random numbers. They subsequently compute the Fleishman's transformation coefficients and by using them  an intermediate correlation matrix from the desired indicators' correlation matrix. A principal-components factorisation  is performed of this intermediate correlation matrix  and the resulting factor is multiplied with the  matrix of independent normally distributed random numbers. Finally, the Fleishman transformation is applied componentwise.  
+
+\begin{example}
+This method was used for a small simulation experiment to compare the estimation via the GSCA approach with PLS for formative models. Different levels of skewness $\sqrt{\beta_1}$ and excess kurtosis $\beta_2$  were chosen. The levels correspond to normal, Laplace,  exponential and t$_5$-distributions (although the empirical values of the kurtosis are smaller than those of the target ones).  
+Fifty samples of size $n=100$ were generated for each distribution  from the model used as the example above while the function \texttt{gscals}, see Schlittgen (2018),  and the implementation \texttt{plspath} of the PLS procedure were used to estimate the model. Figure \ref{fig:boxplot} shows the differences between the estimates and the path coefficients used for simulation.
+The estimatess are not better than in the normalsimulation methods, probably due to  the multiplicative manner in which the model parameters appear in the estimation equations.   Overall, the differences between the two estimation methods's results are small. However, the results by \texttt{gscals} are a bit closer to by the level even though the PLS estimates are rather more closely grouped around the true values. The shape of the distribution seems to be of no importance.
+
+\begin{figure}[h]
+\includegraphics[width=8cm]{boxplot.eps}
+\caption{Deviation of estimated coefficients from model coefficients  for different distributions (left: gscals, right: pls)}
+\label{fig:boxplot}
+\end{figure}
+
+The covariance matrix $\ma{S}$ was determined in the two examples \ref{bsp:1.2.1} and \ref{bsp:1.2.2}. Then the code for generating a sample of size $n=100$ is as follows.
+
+\linenumbers*[1] 
+\begin{verbatim}
+  S <- rbind(cbind(Sxx,Sxy), cbind(t(Sxy),Syy ))        
+  skew <- 0
+  kurt <- 6  
+  startv <- FleishmanIC(skew, kurt)
+  out <- NewtonFl(c(skew,kurt),startv) 
+  Fcoef <- out$coefficients
+  dat <- rValeMaurelli(100, S, Fcoef) 
+\end{verbatim}
+\nolinenumbers
+\end{example}
+ 
+
+\section{Estimation of GSC models}
+
+
+\subsection{Reformulation of the models}
+
+The models are cast into  the form introduced by Hwang and Takane (2004) to derive a method for estimation. For this, the point of view is changed to the the observations. Let  $\ma{X}$ and $\ma{Y}$ be the data matrices. $\ma{Z}$, $\ma{\Delta}$, $\ma{E}$ are the matrices of scores of the error vectors $\ve{\zeta}$, $\ve{\delta}$ and $\ve{\varepsilon}$. 
+Then structural and measurement parts of the model are	 combined into one equation.  
+
+The structural model can be written as: 
+%
+\begin{equation} \label{eq:SM}
+   \left[\ma{X}|\ma{Y}\right]  \left[\begin{array}{c} \ma{0} \\  \ma{W}_2 \end{array}\right] 
+   =
+   \left[  \ma{X}|\ma{Y}\right] 
+   \left[\begin{array}{c}  \ma{W}_1 \\ \ma{0} \end{array}
+  \left| \begin{array}{c}  \ma{0} \\    \ma{W}_2\end{array}\right. \right] 
+  \left[\begin{array}{c}
+          \ma{\Gamma}^\prime   \\  \ma{B}^\prime 
+          \end{array}\right] 
+  + \ma{Z} \,.
+\end{equation} 
+% 
+
+ 
+The measurement model of the reflective-reflective scenario is:
+%
+\begin{equation} 
+  \left[\ma{X}|\ma{Y}\right] =
+    \left[\ma{X}|\ma{Y}\right]   
+    \left[\begin{array}{c}  \ma{W}_1 \\  \ma{0} \end{array}
+  \left| \begin{array}{c}  \ma{0} \\    \ma{W}_2\end{array}\right. \right] 
+    \left[
+\begin{array}{ccccc}
+       \ma{\Lambda}_{x}^\prime & \ve{0}  \\ 
+                   \ve{0}    &  \ma{\Lambda}_{y}^\prime
+      \end{array}             
+     \right] 
+     + [\ma{\Delta}|\ma{E}] \,.
+\end{equation}   
+ 
+Combining these two equations lead to: 
+\begin{equation}  \label{eq:reflM} 
+  \left[\ma{X}\left|\ma{Y}\right.\right]  
+  \left[\begin{array}{c}  \ma{0} \\\ma{W}_2\end{array}
+                                     \left|\ma{I}\right.\right]   
+     = \left[\ma{X}\left|\ma{Y}\right.\right]
+  \left[\begin{array}{c}  \ma{W}_1 \\\ma{0}\end{array}\left|
+  \begin{array}{c}  \ma{0} \\ \ma{W}_2\end{array}\right.\right] 
+   \left[ 
+ \begin{array}{c}
+    \begin{array}{c}
+          \ma{\Gamma}^\prime   \\  \ma{B}^\prime 
+          \end{array} 
+      \left|   
+   \begin{array}{ccccc}
+       \ma{\Lambda}_{x}^\prime & \ve{0}  \\ 
+                   \ve{0}    &  \ma{\Lambda}_{y}^\prime 
+      \end{array} \right.  
+   \end{array} \right]  +  [\ma{Z}|\ma{\Delta}|\ma{E}]\,.  
+\end{equation}   
+ 
+
+Given the weighting matrices $\ma{W}_1$ and $\ma{W}_2$, \eqref{eq:reflM} states a multivariate regression relationship with the parameter matrix $\ma{A}$,
+\[
+   \ma{A} =  \left[\begin{array}{c}
+         \begin{array}{c}
+          \ma{\Gamma}^\prime   \\  \ma{B}^\prime 
+          \end{array} 
+      \left|   
+   \begin{array}{ccccc}
+       \ma{\Lambda}_{x}^\prime & \ve{0}  \\ 
+                   \ve{0}    &  \ma{\Lambda}_{y}^\prime 
+      \end{array} \right.  
+   \end{array} \right] \,.
+\]    
+
+
+Second, the formative-reflective scenario follows, for which the measurement equation becomes: 
+%
+\begin{equation} 
+   \left[\ma{X}|\ma{Y}\right] 
+   \left[  \begin{array}{c}  \ma{0} \\  \ma{I} \end{array} \right] 
+         =
+    \left[\ma{X}|\ma{Y}\right]  
+    \left[ \begin{array}{c} \ma{0} \\ \ma{W}_2 \end{array} \right] 
+     \ma{\Lambda}_{y}^\prime   + \ma{E}  \,.
+\end{equation}  
+
+A combination of the structural equation \eqref{eq:SM} with this measurement equation, leads to: 
+\begin{equation} \label{eq:frall} 
+ \left[\ma{X}|\ma{Y}\right] 
+    \left[\begin{array}{c}  \ma{0} \\ \ma{W}_2 \end{array} \left|
+         \begin{array}{c}  \ma{0} \\  \ma{I} \end{array}   \right. 
+     \right]  
+          =
+ \left[\ma{X}|\ma{Y}\right] 
+    \left[ \begin{array}{c}  \ma{W}_1 \\ \ma{0} \end{array}
+    \left|  \begin{array}{c}  \ma{0} \\ \ma{W}_2 \end{array}  \right.  \right]
+  \left[      \begin{array}{c}
+          \ma{\Gamma}^\prime   \\  \ma{B}^\prime 
+          \end{array} 
+          \left|
+          \begin{array}{c} \ma{0} \\  \ma{\Lambda}_y^\prime  \end{array}
+          \right.
+      \right] 
+      + [\ma{Z}|\ma{E}] \,.
+\end{equation}
+%
+The parameter matrix $\ma{A}$ reduces compared to that of the reflective-reflective model scenario.
+
+PLS knows additionaly loadings for the  formative relations.  In the case of  formative-reflective models the equation 
+$\ve{\xi} = \ve{x}\ma{\Lambda}_x$	has to be added. Then the measurement equation becomes 
+%
+\begin{equation*} 
+   \left[\ma{X}|\ma{Y}\right] 
+   \left[ \begin{array}{c}  \ma{W}_1 \\ \ma{0} \end{array} \left|
+         \begin{array}{c}  \ma{0} \\  \ma{I} \end{array} \right.\right] 
+         =
+    \left[\ma{X}|\ma{Y}\right]  
+    \left[ \begin{array}{c} \ma{I} \\  \ma{0} \end{array}  \left|
+      \begin{array}{c} \ma{0} \\ \ma{W}_2 \end{array}\right.\right] 
+    {\left[
+     \begin{array}{ccccc}
+      \ma{\Lambda}_{x}  & \ma{0}  \\ 
+               \ma{0}    & \ma{\Lambda}_{y}^\prime
+      \end{array}             
+     \right]}
+     + [\ma{\Delta}|\ma{E}] .
+\end{equation*}  
+%
+This gives together with the structural equation:
+\begin{equation*}  
+\begin{split}
+ \left[\ma{X}|\ma{Y}\right]  
+    \left[\begin{array}{c}  \ma{0} \\ \ma{W}_2 \end{array} \left|
+           \begin{array}{c}  \ma{W}_1 \\ \ma{0} \end{array} \right|
+         \begin{array}{c}  \ma{0} \\  \ma{I} \end{array}     \right]  
+         =
+ \left[\ma{X}|\ma{Y}\right] 
+    \left[ \begin{array}{c}  \ma{W}_1 \\ \ma{0} \end{array}
+    \left| \begin{array}{c} \ma{I} \\  \ma{0} \end{array} \right|
+            \begin{array}{c}  \ma{0} \\ \ma{W}_2 \end{array}  \right]
+    \left[\begin{array}{c}
+          \ma{\Gamma}^\prime  \\ \ma{0} \\  \ma{B}^\prime 
+          \end{array}
+          \left|
+          \begin{array}{c} \ma{0} \\ \ma{\Lambda}_x  \\ \ma{0} \end{array}
+          \right|
+          \begin{array}{c} \ma{0} \\ \ma{0} \\ \ma{\Lambda}_y^\prime  \end{array}
+      \right]
+      + [\ma{Z}|\ma{\Delta}|\ma{E}]
+\end{split}
+\end{equation*}
+%
+A closer inspection of this equation shows that the middle part is fulfilled without error when the weighting matrix $\ma{W}_1$ equals the matrix $\ma{\Lambda}_x$ of loadings. Therefore it is not necessary to determine it and the model can be reduced at the outset. This serves as additional justification for the  approach pesented here.  
+
+
+
+Third, the formative-formative scenario does not state a separate measurement equation. Therefore, the model is simply given by \eqref{eq:SM}. Here, $\ma{A}= [\ma{\Gamma}|\ma{B}]^\prime$.  
+
+
+\subsection{The estimation algorithm}
+
+
+The least squares methods are used to estimate the parameters in the central relationships \eqref{eq:reflM}, \eqref{eq:frall} and \eqref{eq:SM}.  Using multivariate regression means that the sum of squared residuals' target criterion should be minimized. Let the matrix on the left be \ma{V} with which the data matrix is multiplied, and let \ma{U} be the corresponding matrix on the right. Then, the target criterion is:
+% 
+\begin{equation}\label{eq:ziel}
+    \text{trace}( (\ma{V} - \ma{U}\ma{A})^\prime[\ma{X}|\ma{Y}]^\prime[\ma{X}|\ma{Y}](\ma{V} - \ma{U}\ma{A})) \stackrel{!}{=} \min \,.
+\end{equation} 
+%
+The following modification, instead of \eqref{eq:ziel}, measures the fit:
+\begin{equation}\label{eq:fit}
+   \text{\emph{Fit}} = 1- 
+    \dfrac{ \text{trace}( (\ma{V} - \ma{U}\ma{A})^\prime[\ma{X}|\ma{Y}]^\prime[\ma{X}|\ma{Y}](\ma{V} - \ma{U}\ma{A}))}{\text{trace}(\ma{V}^\prime[\ma{X}|\ma{Y}]^\prime[\ma{X}|\ma{Y}]\ma{V})} \,.  
+\end{equation} 
+%
+This \emph{Fit} was proposed by Hwang and Takane (2004) and its value will be used as criterion to compare the  results of the algorithms.  
+
+The proposed algorithm uses an idea taken from iteratively reweighted least squares to solve the optimization problem. It is  known as W estimators for regression (Hoaglin, Mosteller and Tukey 1983). There, the unknown parameters appear also on both sides of an equation. Then the parameter values on one side are held fixed and the ones on the other side are updated. This is done here analogously. The resulting algorithm is an alternating least squares (ALS) algorithm. 
+
+Let some starting values be given. Then an update of the parameters collected in the matrix \ma{A} is performed. The weights are fixed for that purpose. Therefore it is possible to use the relationships \eqref{eq:reflM}, \eqref{eq:frall} and \eqref{eq:SM} directly. It is a well-known fact that the separate estimation of every column in the parameter matrix \ma{A} by linear regression leads to multivariate regression. It is important to be aware of the structural zeros contained in the columns. Upon selection of such a column for the estimation of its parameters, these structural zeros must be eliminated together with the corresponding columns of the regressor matrix. Eventually, the resulting estimates will lead to an updated parameter matrix \ma{A}. 
+
+Each one of the three measurement model scenarios requires a different process to update the weights. For the reflective-reflective scenario  equation \eqref{eq:reflM} is reformulated. With $\ma{B}_{r1}$  and  $\ma{B}_{r2}$ being the submatrices of $\ma{B}_{r}$ containing the first $q_1$ and last $q_2$ columns, the new equation is:
+\begin{equation}\label{eq:astar}    
+  \left[\ma{X}\left|\ma{Y}\right.\right]
+  \left[\left. \begin{array}{c}  \ma{0} \\ \ma{W}_2 \end{array}
+                                     \right|\ma{I} \right] 
+    =  
+  \left[\ma{X}\left|\ma{Y}\right.\right] 
+  \left[\begin{array}{c}
+     \begin{array}{c}  \ma{W}_1 \ma{\Gamma}^\prime  \\    
+                        \ma{W}_2 \ma{B}^\prime             \end{array} 
+      \left|   
+   \begin{array}{ccccc}
+               \ma{W}_1 \ma{\Lambda}_{x}^\prime & \ma{0}  \\ 
+                \ma{0}                           &  \ma{W}_2 \ma{\Lambda}_{y}^\prime 
+      \end{array} \right.  
+   \end{array} \right]    
+        +  [\ma{Z}|\ma{\Delta}|\ma{E}]\,.   
+\end{equation} 
+%
+The estimation of the second composited matrix to the right of equation \eqref{eq:astar} is done on the basis of that equation in the same way as $\ma{A}$, by using multivariate linear regressions. The estimated matrix is denoted by $\ma{A}^*$.  
+
+\eqref{eq:reflM} and \eqref{eq:astar} result in:
+\[
+   \ma{A}^* \approx  \left[\begin{array}{c}  \ma{W}_1 \\
+                                     \ma{0}\end{array}\left|
+                     \begin{array}{c}   \ma{0}  \\
+                                      \ma{W}_2 \end{array}\right.\right]\ma{A} \,.
+\] 
+Here, $\ma{A}$ is the already updated matrix of parameter estimates.
+This leads to the following equation, allowing for new $\ma{W}_1$ and $\ma{W}_2$ estimates by multivariate regression:
+\begin{equation}\label{eq:updatW}
+  (\ma{A}^*)^\prime = \ma{A}^\prime \left[\begin{array}{c}  \ma{W}_1^\prime \\
+                                     \ma{0}\end{array}\left|
+                     \begin{array}{c}   \ma{0}  \\
+                                      \ma{W}_2^\prime \end{array}\right.\right] + \ma{F}\,.
+\end{equation}
+
+A column-wise standardization of the weights determines the updating of the parameters and weights to ensure that the latent variables have unit variance. 
+
+The updating of $\ma{A}$, $\ma{W}_1$ and $\ma{W}_2$ stops when the changes in their values are small enough.
+  
+\begin{example}   
+The reflective ECSI model is considered., cf. Schlittgen (2018). The data are Tenenhaus' mobile telefon data.
+
+\linenumbers*[1] 
+\vspace{-3mm}   
+\begin{verbatim}    
+   library(cbsem) 
+   data(mobi250)                                                                                   
+   ind <- c(1,1,1,4,4,4,2,2,2,3,3,5,5,5,6,6,6,7,1,1,4,4,4,4)                
+   o <- order(ind)                                                                                 
+   indicatorx <- c(1,1,1,1,1)                                                                      
+   indicatory <- c(1,1,1,2,2,3,3,3,3,3,3,3,4,4,4,5,5,5)                           
+   dat <- mobi250[,o]                                                                              
+   dat <- dat[,-ncol(dat)]                                                                         
+   B <- matrix(c(0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,                                              
+                 0,1,1,0,0,0,0,1,1,1,0,0,1,0,0,0,1,0),6,6,byrow=TRUE)                              
+   out <- gscals(dat,B,indicatorx,indicatory,loadingx=TRUE,loadingy=
+                 TRUE,maxiter=200,biascor=FALSE) 
+\end{verbatim}
+\nolinenumbers 
+\end{example} 
+
+The same applies to the formative-reflective scenario. First, \ma{A} is updated by using equation \eqref{eq:frall}.
+Subsequently, the actualization of the weights requires a reformulation of equation \eqref{eq:frall}: 
+\begin{equation} \label{eq:frall2}
+ \left[ \ma{X}|\ma{Y}\right] 
+    \left[\begin{array}{c}  \ma{0} \\ \ma{W}_2 \end{array} \left| 
+         \begin{array}{c}  \ma{0} \\  \ma{I} \end{array}  \right.   \right]
+   =
+ \left[\ma{X}|\ma{Y}\right] 
+    \left[ \begin{array}{c}  \ma{W}_1 \ma{\Gamma}^\prime \\ \ma{W}_2  \ma{B}^\prime  \end{array}
+    \left|  
+    \begin{array}{c}   \ma{0}  \\  \ma{W}_2 \ma{\Lambda}_y^\prime 
+    \end{array}  \right. \right] 
+      + [\ma{Z}|\ma{E}] \,.
+\end{equation}
+ 
+To improve the weights, the matrix    
+\[
+\left[\begin{array}{c}
+     \begin{array}{c}    \ma{W}_1 \ma{\Gamma}^\prime  \\    
+                         \ma{W}_2 \ma{B}^\prime        \\     \end{array} 
+      \left|   
+   \begin{array}{ccccc}
+                 \ma{0}   \\ 
+                  \ma{W}_2 \ma{\Lambda}_{y}^\prime   
+      \end{array} \right.  
+   \end{array} \right]  
+\]
+is estimated by using \eqref{eq:frall2} just like in the reflective-reflective scenario. $\ma{A}^*$  again denotes the estimated matrix.  The regression equation for estimating the weights then equals \eqref{eq:updatW}.
+
+As in the reflective-reflective scenario,  every $\ma{W}_1$ and $\ma{W}_2$ update leads to a standardization of the weights.
+
+\begin{example}   
+An example from Ringle is taken to illustrate the formative-reflective  scenario fr.
+
+\linenumbers*[1]  
+\begin{verbatim}      
+  library(cbsem) 
+  dat <- read.table("RingleFormReflDat.txt",header=T) 
+  B0 <-matrix(c(0,0,0,0,0,0,0,0,0,0,
+                        0,0,0,0,0,1,1,1,0,0,
+                        0,0,0,1,0),5,5,byrow=T)
+  indicatorx <- c(1, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3)
+  indicatory <- c(1,1,1,2,2,2) 
+  out <- gscals(dat,B0,indicatorx,indicatory,loadingx=FALSE,loadingy
+                       =TRUE,maxiter=200,biascor=FALSE)    
+\end{verbatim}
+\nolinenumbers 
+\end{example} 
+
+In the formative-formative scenario, only the structural equation \eqref{eq:SM} is available for improving the starting values. To update the weights, first the matrix 
+$\ma{A}^*$ is estimated from the reformulated equation \eqref{eq:SM}:
+\begin{equation} \label{eq:ffall}
+   \left[\ma{X}|\ma{Y}\right]  \left[\begin{array}{c} \ma{0} \\  \ma{W}_2 \end{array}\right] 
+   =
+   \left[  \ma{X}|\ma{Y}\right] 
+   \left[\begin{array}{c}  \ma{W}_1 \ma{\Gamma}^\prime \\ \ma{W}_2\ma{B}^\prime \end{array} \right]
+  + \ma{Z} \,.
+\end{equation} 
+
+Then, the $\ma{W}_1$ matrix of weights is updated with the help of equation \eqref{eq:updatW} in the manner described above. This is not possible for $\ma{W}_2$, because  the last rows of $\ma{A}=\ma{B}_r^\prime$ contain zeros only.  The number of these rows equals the number of  $\eta$'s having no latent variables depending on them in the structural equation. This results in a block of zeros in the last rows of $\ma{W}_2 \ma{B}_{r2}^\prime$ and the 
+weights for the corresponding endogenous latent variables can not be determined with the type of regression used above. 
+
+The matrix $\ma{W}_2$ of weights is therefore updated differently. Reformulating equation \eqref{eq:SM} again, we have: 
+\begin{equation}  \label{eq:updatW2}
+   \left[  \ma{X}|\ma{Y}\right] 
+   \left[\begin{array}{c}  \ma{W}_1 \\ \ma{0} \end{array}
+  \left| \begin{array}{c}  \ma{0} \\    \ma{W}_2\end{array}\right. \right] 
+   \left[\begin{array}{c} \ma{\Gamma}^\prime \\ \ma{B}^\prime \end{array} \right]
+   = 
+   \ma{Y}  \ma{W}_2 - \ma{Z} \,.
+\end{equation}  
+The matrix on the left hand side is the $n\times q_2$ score matrix of the endogenous composites.
+By regarding it as data matrix of dependent variables and $\ma{Y}$ as one of explanatory ones, we obtain new values for the entries of $\ma{W}_2$ by performing this multivariate regression.
+
+
+\begin{example}   
+Albers model is consider in the case of scenario ff. 
+
+\linenumbers*[1] 
+\vspace{-3mm}   
+\begin{verbatim}    
+  B0 <- matrix(
+       c(0,0,0,0,0,0,0,0,0,0,0,0, 
+          0,0,0,0,0,0,1,1,0,0,0,0, 
+          0,1,1,0,0,0,0,0,0,1,1,0),6,6,byrow=T)  
+  indicatorx <- c(1,1,1,2,2,2,3,3,3)
+  indicatory <- c(1,1,1,2,2,2,3,3,3)
+  out1 <- gscals(dat,B0,indicatorx,indicatory,loadingx=FALSE,loadingy=
+               FALSE,maxiter=200,biascor=FALSE)                   
+\end{verbatim}
+\nolinenumbers 
+\end{example} 
+
+\begin{figure}[h]
+\begin{boxedminipage}[c]{13.5cm}
+\begin{tabular}{l@{}p{11.5cm}}
+\emph{Step 0:} 
+& Set the model with 0-1 matrices $\ma{W}_1, \ma{W}_2, \ma{\Gamma}, \ma{B}$, $\ma{\Lambda}_x$, $\ma{\Lambda}_y$. \newline 
+          Substitute the ones with uniform random numbers.  \newline  
+          Choose the scenario: rr, rf, or ff. 
+          \newline Set $\Delta$ for convergence criterion (i.e  the maximal allowed absolute difference of estimated parameters between two iterations). \\ 
+\emph{Do loop:}  & \\       
+\emph{Step 1:} &  Update the parameters in matrix $\ma{A}$ by least squares using one of the equations \eqref{eq:reflM},
+             \eqref{eq:frall} or \eqref{eq:SM} according to the scenarios  ff, fr, rf.  \\
+\emph{Step 2:} &  Estimate the matrix $\ma{A}^*$ by least squares using one of the equations \eqref{eq:astar},
+             \eqref{eq:frall2} or \eqref{eq:ffall} according to the scenarios ff, fr, rf.  \\
+\emph{Step 3:} & Update the weights $\ma{W}_1$ using the regression equation \eqref{eq:updatW}. \\
+          & Standardize the weights in matrix  $\ma{W_1}$ \\    
+\emph{Step 4:} & \emph{If} scenario =   rr or = fr:  Update the weights $\ma{W_2}$ using the regression equation 
+            \eqref{eq:updatW}. \\         
+          & \emph{If} scenario =   ff:  Update the weights $\ma{W}_2$ using the regression equation 
+            \eqref{eq:updatW2}. \\     
+          & Standardize the weights in matrix  $\ma{W}_2$ \\ 
+\emph{Step 5:} & Compute the differences of the updated parameters and their values of the last round. \\
+           &  \emph{If} The maximum of absolute differences is greater than $\Delta$. \\
+           &  \hspace*{3mm} Go to \emph{Step 1}. \\
+         & \emph{Else} Output of the estimated parameters. \\ 
+\emph{Stop.}                    
+\end{tabular}          
+\end{boxedminipage}
+\caption{The gscals algorithm. \label{quasicode2}} 
+\end{figure}
+
+Figure \ref{quasicode2} gives a quasi-code of our ALS-algorithm.  The algorithm by Hwang and Takane (2004) is an ALS too. As they state, in general ALS can be viewed as a special type of the FP algorithm where the fixed point is a stationary point  of a function to be optimized. But no investigation of theoretical aspects of our algorithm has be done yet. Nevertheless, the stationary point is characterized by the following fact: The solutions of \eqref{eq:astar} ( \eqref{eq:frall2} / \eqref{eq:SM} ) with inserted solutions of \eqref{eq:updatW} (\eqref{eq:updatW}/\eqref{eq:ffall} and \eqref{eq:updatW2}) do not change anymore and the same holds when the two equations are exchanged. 
+
+Experiments showed that the results do not depend on the choice of starting values. Therefore, uniformly distributed random variates are chosen for them.  When PLS-estimates were used as starting values for the four empirical examples, the number of iterations were 21, 37, 15, 14 for the PLS-starting values and 21, 44, 16, 15  for the random starts. But the PLS-iterations must be taken into account additionally.   
+
+Empirical evidence of monotonic  decrease of the maximum of absolute  differences of parameters during the iterations can be given only. It was violated only two times in the first step from the initial parameter settings to the first improved estimates. This was caused perhaps by a special constellation of the random start values. 
+
+Schlittgen (2018) shows that the proposed algorithm works well compared to \texttt{matrixpls} and \texttt{GeSCA}.
+
+\subsection{Bootstrap bias correction}
+
+
+GSCA and PLS estimates are known to give biased results. This also holds true for the recent modification of the PLS algorithm, making its estimation consistent for reflective models (model A) (Dijkstra \& Henseler 2015). The modification estimates the loadings much better, but improves the estimates of the path coefficients only a little bit in smaller samples.  Thereforeit is worthwhile to investigate bootstrap bias correction. The idea behind this correction can be described concisely as follows. 
+
+Let $\theta$ be the parameter to be estimated and let $\hat{\theta}$ be an estimator of it. It may be necessary to adjust it in an additive way. Then $\hat{\theta}+t$ is the bias corrected estimator. Ideally, one would like to choose $t$ to reduce the bias to zero, i.e. to solve $\e(\hat{\theta} - \theta + t) = 0$. With the bootstrap, an empirical version is produced that mimics this theoretical relation. The estimate $\hat{\theta}$ computed from the sample takes the role of the theoretical parameter and the average of the bootstrap estimates $\overline{\hat{\theta}^{^*}}$ takes the role of the mean value of the estimator. Then the bias correction fulfills  
+
+\[
+   \overline{\hat{\theta}^{^*}} - \hat{\theta} + t = 0 ,\qquad \text{or} \qquad      
+      t = \hat{\theta} -\overline{\hat{\theta}^{^*}}.
+\]
+Therefore, the (additively) bias corrected estimator is given by 
+\begin{equation}
+  \hat{\theta} + t = 2 \cdot \hat{\theta} -\overline{\hat{\theta}^{^*}}\,.
+\end{equation}
+
+
+Two variants of this approach have been implemented. First, the multivariate observations were resampled and the parameters are estimated with the resampled data set.   The second variant is a parametric bootstrap. With the estimated parameters, the indicators' covariance matrix is determined. Normally distributed samples were simulated with it of the same size as the original sample. These samples were used again to get botstap estimates. 
+
+A simulation study was performed to investigate the benefit of it.  First,
+the reflective-reflective Bergami-Bagozzi model (Bergami \& Bagozzi 2000), see figure \ref{fig:bergbagM}  was considered. We considered three levels of sample size $(n = 25, 100, 400)$, and generated 500 samples for each. Three distributions were  taken into account: the normal distribution, a leptocitic and a skewed distribution. 
+
+\begin{figure}[h] 
+\vspace{-4mm}
+\includegraphics[width=9cm]{fig2.eps} % bergbagoplot
+\vspace{-5mm}
+\caption{The specified structural equation model for Bergami and Bagozzi's organizational identification data \label{fig:bergbagM}} 
+\end{figure}
+
+With the parameters estimated by the gscals algorithm the model was simulated 500 times and estimated. Estimation was done without and with bootstrap-bias correction. To give an overall impressoíon of the relative benefit of bootstrap bias correction, the means of the absolute errors over all path coefficients and over all loadings are presented in table \ref{tab:bergbag}.
+
+\begin{table}[H]
+\caption{Mean values of bias  and mean squared error for the estimates for the Bergami-Bagozzi model\label{tab:bergbag}}  
+\begin{tabular}{lcccccc}  
+             &      &               &  \multicolumn{4}{c}{ mean values of } \\
+distribution &$n$ & bias cor. & bias($\beta$) & bias($\lambda$) & MSE($\beta$) & MSE($\lambda$) \\
+\hline        
+normal   &25  & no      & 0.0334 & 0.0346 & 0.0327 & 0.0081  \\         
+skew = 0,&    & resamp. & 0.0346 & 0.0416 & 0.0333 & 0.0084  \\           
+kurt = 0 &    & param.  & 0.0062 & 0.0099 & 0.0366 & 0.0099  \\ 
+         &100 & no      & 0.0376 & 0.0382 & 0.0082 & 0.0033  \\                                                                                            
+         &    & resamp. & 0.0448 & 0.0399 & 0.0092 & 0.0034   \\
+         &    & param.  & 0.0067 & 0.0105 & 0.0077 & 0.0024  \\                                                                                            
+         &400 & resamp. & 0.0401 & 0.0391 & 0.0035 & 0.0023  \\         
+         &    & param.  & 0.0443 & 0.0386 & 0.0038 & 0.0023  \\
+         &    & yes     & 0.0035 & 0.0101 & 0.0020 & 0.0007   \\        
+ \hline        
+skew = 0,&25  & no      & 0.0320 & 0.0347 & 0.0315 & 0.0086  \\            
+kurt = 3 &    & param.  & 0.0025 & 0.0102 & 0.0357 & 0.0105  \\      
+         &100 & no      & 0.0384 & 0.0387 & 0.0090 & 0.0035  \\      
+         &    & param.  & 0.0033 & 0.0100 & 0.0087 & 0.0027  \\            
+         &400 & no      & 0.0444 & 0.0389 & 0.0038 & 0.0024  \\            
+         &    & param.  & 0.0048 & 0.0101 & 0.0020 & 0.0008  \\      
+\hline                                                                                                           
+skew = 2,&25  & no      & 0.0184 & 0.0332 & 0.0322 & 0.0119    \\                 
+kurt = 6 &    & param.  & 0.0132 & 0.0087 & 0.0367 & 0.0153   \\           
+         &100 & no      & 0.0394 & 0.0376 & 0.0098 & 0.0043   \\      
+         &    & param.  & 0.0020 & 0.0117 & 0.0094 & 0.0041   \\      
+         &400 & no      & 0.0413 & 0.0384 & 0.0039 & 0.0026   \\           
+         &    & param.  & 0.0032 & 0.0102 & 0.0024 & 0.0012   \\      
+\hline                                                               
+\end{tabular}                                                      
+\end{table}                                                                
+   
+The figures of the table show that the resampling  variant of  bootstrap bias correction does not work. But the parametric variant
+has a remarkable effect. Because of that only this is considered in the following. 
+
+The distribution does not affect neither the level of the bias nor the amount of the correction.  The same holds for the sample size.   But  the mean squared errors indicate that the gain by reducing the bias is greater for larger $n$. This also holds true for normally and nonnormally distributed data, despite the bootstrap also having been performed with normally distributed bootstrap samples in the latter situations. Altogether  bootstrap bias correction works well for all distributions.    
+
+
+Now, a formative-formative model will be investigated. We use the ECSI-model with Tenenhaus' mobile phone data. A discussion in Gudergan, Ringle, Wende \& Will (2008) inspired this. These authors draw attention to the possibility that the usual reflective-reflective measurement relationships are misspecifications. 
+  
+\begin{figure}[h]
+\includegraphics[width=8.5cm]{fig3.eps} % ecsiplot
+\vspace{-1mm}
+\caption{Stuctural model for customer satisfaction \label{fig:ecsiM} } 
+\end{figure} 
+        
+         
+First, the model is estimated. The resulting parameters $\hat{\ma{\Sigma}}_{\subxi\subxi}$, $\hat{\ma{B}}$ , $\hat{\ma{w}}_{\subx}$, and  $\hat{\ma{w}}_{\suby}$ are used to simulate the model. 
+
+\begin{table}[H]
+\caption{Mean values of bias  and mean squared error for the estimates for the formative ECSI  model\label{tab:ecsi}}  
+\begin{tabular}{lcccc} 
+\hline
+$n$ & bias cor.& bias($\beta$)  & MSE($\beta$)  \\  
+\hline
+ 25  &  no     & 0.1379 & 0.1415 \\
+       &  yes  & 0.1224 & 0.2051 \\
+ 100 &  no     & 0.0404 & 0.0044 \\
+     &  yes    & 0.0340 & 0.0050 \\
+ 400 & no      & 0.0386 & 0.0047  \\
+     & yes     & 0.0390 & 0.0043  \\
+\hline                                                               
+\end{tabular}                                                      
+\end{table}     
+
+The 500 replications for $n=25$ produced only 34 where the covariance matrix derived from the estimate could be used to generate bootsrap samples.
+With $n=400$ this number increased to  491.          
+ 
+ Additionally, the formative Albers-model was investigated.        
+  
+\begin{table}[H]
+\caption{Mean values of bias  and mean squared error for the estimates for the formative Albers  model\label{tab:albers}}  
+\begin{tabular}{lcccc} 
+\hline
+$n$ & bias cor.& bias($\beta$)  & MSE($\beta$)  \\  
+\hline
+ 25  &  no     & 0.0595 & 0.0635 \\
+     &  yes    & 0.0612 & 0.0860 \\
+ 100 &  no     & 0.0150 & 0.0056 \\
+     &  yes    & 0.0086 & 0.0055 \\
+ 400 & no      & 0.0115 & 0.0014 \\
+     & yes     & 0.0097 & 0.0015 \\
+\hline                                                               
+\end{tabular}                                                      
+\end{table}          
+
+Again, a certain sample size is necessary until bootstrap bias correction has a positive effect. It does not work well for samples too small.  Altogether,   the bias correction works well but not in that amount as in the reflective-reflective situation.                                              
+
+
+We use simulated data to explore the usefulness of bootstap bias correction when the model is formative-reflective. Figure \ref{fig:ringle} shows the model taken from the literature (Ringle \& al.\ 2009). The parameter values are given in Figure \ref{fig:ringle}.  
+
+\begin{figure}[h]  
+\includegraphics[width=8.5cm]{ringleplot.eps}  % ringleplot
+\caption{Ringle's model for investigating a formative-reflective scenario\label{fig:ringle}}
+\end{figure} 
+
+The results for normally distributed data is presented in Table \ref{tab:ringle}. With regard to the path coefficients the bias correction does not show a clear improvement, but ambiguous results. But there is a tendency that it pays for larger sample sizes.  The bias correction has contra positive effect for small samples ($n=25$) but positive one for larger samples.  
+ 
+
+\begin{table}[H]
+\caption{Mean values of bias  and mean squared error for the estimates for the formative-reflective Ringle  model\label{tab:ringle}}  
+\begin{tabular}{lcccccc} 
+$n$ & bias cor.& bias($\beta$)  &  bias($\lambda$)  & MSE($\beta$)& MSE($\lambda$)  \\  
+\hline
+ 25  &  no     & 0.0234 & 0.0109 & 0.0903 & 0.0003 \\
+       &  yes  & 0.0688 & 0.0078 & 0.2386 & 0.0004 \\
+ 100 &  no     & 0.0159 & 0.0128 & 0.0151 & 0.0002 \\
+     &  yes    & 0.0127 & 0.0052 & 0.0607 & 0.0001 \\
+ 400 & no      & 0.0109 & 0.0134 & 0.0023 & 0.0002 \\
+     & yes     & 0.0042 & 0.0046 & 0.0017 & 0.0000 \\
+\hline                                                               
+\end{tabular}                                                      
+\end{table}     
+
+ 
+\section{Segmentation of GSC models} 
+
+\subsection{An algorithm for known number of segments} 
+
+Uncovering unobserved heterogeneity is a requirement to obtain valid results when using the structural equation modeling method with empirical data. Conventional segmentation methods usually fail in SEM since they account for the observations but not the composites and their relationships in the structural model. 
+
+Finding the best segmentation solution for a goal criterion is a combinatorial data assignment problem. The complexity of the problem increases exponentially with higher numbers of observations and/or higher numbers of segments (Cowgill, Harvey, \& Watson, 1999). Conventional segmentation methods usually fail in SEM since they account for the observations but not the latent variables and their relationships in the structural model. The GSC-IRRS approach builds on an idea introduced by Schlittgen (2011) for clusterwise robust regression. In robust regression, M-estimators down-weight observations with extreme values of the dependent variable. Thereby, they mitigate the influence of outliers in the data set. One method to compute M-estimators is iteratively reweighted least squares. The weights are determined by the residuals and the larger the residuals, the smaller the weights. Since  the parameters of GSC models are estimated basically by a system of least squares regressions, it is possible to use the idea of robust regression for determining a group of data and to address the segmentation problem. To adapt this idea for GSCA segmentation, outliers are not treated as such but as their own segment. Hence, when robust regression identifies a group of similar outliers, they may become a data group of their own and represent a segment-specific GSCA solution. On the other hand, within a group of data, a M-estimator down-weights inhomogeneous observations when returning the segment-specific GSCA solution. 
+
+We start with a random choice of weights $\nu_{ik}$, where $i$  indicates an observation and $k=1,…,g$ the different segments ($\sum_{k=1}^g \nu_{ik} =1$ for all $i=1,\dots,n$ .  Next, the method determines the segment-specific GSC solutions accounting for the  weights $(\nu_{1k} ,\dots, \nu_{nk} )\prime$ of the $g$ segment vectors in the \texttt{gscals} algorithm, by multiplying the data matrix with the square root of the weights.
+
+\begin{figure}[h]
+\begin{boxedminipage}{13.5cm}  
+\begin{tabular}{@{}l@{}p{11.75cm}} 
+\emph{Step 0:}  &	Set $n$ for the number of observations; \\
+                          & set $g$ for the number of groups; \\
+                          & set  $\Delta$ for the convergence criterion, i. e. maximum difference of estimated parameters between two iterations; \\
+                          & set  \emph{Stop} (i.e., maximum number of generated GSC-IRRS solutions). \\
+                         &  	Randomly generate weights $\nu_{ik} \ge 0$ with $\sum_k \nu_{ik} =1$   for all $i=1,\dots,n$ whereby $i$ indicates an observation and $k=1,\dots,g$ the different segnments. \\ 
+\emph{Do loop} \\
+\emph{Step 1:} &  For $k=1,\dots,g$:   Estimate the GSC path model with the $\nu_{ik}$ weighted observations. \\ 
+\emph{Step 2:} &  Determine the residuals $r_{ikj}$ of the estimated structural regressions $j$ using the unweighted observations. \\
+\emph{Step 3:} &  For each $i=1,\dots,n$, compute the sum of the squared values $r_{ik}^2=\sum_j r_{ikj}^2$. \\
+\emph{Step 4:} &  Let the normed reciprocal values $1/r_{ik}^2$ become the new weights. \\
+\emph{Step 5:} &  Compare the  estimated coefficients with those of the previous iteration. \\
+          & \emph{If} the difference is larger than $\Delta$ and the number of iteration is less than \emph{Stop}. \\
+          & \quad \emph{Go} to \emph{Step 1} \\
+         & \emph{Else} \\ 
+         & \quad  Use the maximum weight $\nu_{ik}$ to assign each observation $i$ to a segment $k$. \\
+\emph{Step 6:} &  	Compute the average value of the weighted coefficients of determination to assess and compare the quality of segmentation results. \\
+\emph{Stop  loop} \\
+\emph{Step 7:} & 	Select the final segmentation solution based on the maximum  value. \\
+\end{tabular}
+\end{boxedminipage}
+\caption{	The GSC-IRRS Algorithm}
+\end{figure}
+
+Building on these results, in the next step, GSC-IRRS computes new weights. They are based on the structural model residuals (i.e., $r_{ikj}$)  which are obtained from the $g$ models when applied to  the unweighted observations. $j$ stands for the different regression equations in the structural model.  More precisely, let $r_{ik}^2 = \sum_j r_{ikj}^2$. Then  the normed reciprocal values $1/r_{ik}^2$ are used as new weights $\nu_{ik}$. Therefore an observation $i$ gets a higher (lower) weight in segments where the sum of its squared residuals is small (large). Using these new weights as input, GSC-IRRS updates the segment-specific solutions and, again, determines new weights.
+ 
+The algorithm terminates when the parameter estimates stabilize (i.e., difference of estimated coefficients between two iterations reaches a value that is smaller than a pre-defined level $\Delta$).
+
+
+\begin{example}
+Scholing \& Timmermann (2000) studied the interdependence in the development of certain specific economic liberties on the one hand and political rights on the other. The question was whether economic liberties can exist independently of political rights, i.e. whether private property, freedom to run a business or to choose a job, contractual freedom and freedom of pricing can be utilized merely as regulation and discovery mechanisms. In other words: whether an authoritarian political system can continue to exist side by side with economic liberties. They had data for 91 states in 1975 and 1995 on the following variables:
+
+\begin{tabular}{lllll}
+ Competition of Parties       & $X_1$ & CP75  & $Y_1$  &  CP95  \\
+ Politial Rights              & $X_2$ & PR75  & $Y_2$  &  PR95  \\
+ Civil Liberties              & $X_3$ & CL75  & $Y_3$  &  CL95  \\
+ Amount of Privatisation      & $X_4$ & AoP75 & $Y_4$  &  AoP95  \\
+ Freedom of Foreign Exchange  & $X_5$ & FFE75  & $Y_5$  &  FFE95  \\
+ Freedom of Capital Movements & $X_6$ & FCM75 & $Y_6$  &  FCM95 \\
+\end{tabular} 
+
+They were used as indicators in a structural model.  The composite based factor model  has four composites. The exogenous ones are $\xi_1$ Political Freedom and  $\xi_2$ Economical Free-
+
+\begin{figure}[h]
+\includegraphics[width=6.5cm]{poloecfreemodel.eps}
+\caption{SEM of political and economical freedom}
+\label{fig:poloec}
+\end{figure} 
+
+\hspace*{-5mm}dom 1975, endogenous are the same but for 1995.
+
+Scholing explained  in a personal communication that he was not very satisfied with the fit of the model to the data. In fact, a three cluster solution led to the following covariance matrices of the manifest variables: \\
+
+Cluster 1 ($n_1=45$)
+{\footnotesize
+\begin{verbatim}
+      CP75 PR75 CL75 AoP75 FFE75 FCM75  CP95 PR95 CL95 AoP95 FFE95 FCM95
+CP75  1.00 0.91 0.82  0.32  0.25  0.45  0.77 0.83 0.81  0.39 0.44  0.69
+PR75  0.91 1.00 0.94  0.24  0.33  0.49  0.76 0.83 0.85  0.34 0.52  0.79
+CL75  0.82 0.94 1.00  0.19  0.35  0.45  0.75 0.83 0.86  0.33 0.56  0.75
+AoP75 0.32 0.24 0.19  1.00  0.40  0.49  0.09 0.18 0.14  0.79 0.02  0.36
+FFE75 0.25 0.33 0.35  0.40  1.00  0.46 -0.05 0.12 0.23  0.50 0.41  0.43
+FCM75 0.45 0.49 0.45  0.49  0.46  1.00  0.25 0.38 0.36  0.46 0.32  0.64
+CP95  0.77 0.76 0.75  0.09 -0.05  0.25  1.00 0.81 0.76  0.22 0.23  0.53
+PR95  0.83 0.83 0.83  0.18  0.12  0.38  0.81 1.00 0.91  0.33 0.40  0.59
+CL95  0.81 0.85 0.86  0.14  0.23  0.36  0.76 0.91 1.00  0.33 0.54  0.64
+AoP95 0.39 0.34 0.33  0.79  0.50  0.46  0.22 0.33 0.33  1.00 0.28  0.45
+FFE95 0.44 0.52 0.56  0.02  0.41  0.32  0.23 0.40 0.54  0.28 1.00  0.55
+FCM95 0.69 0.79 0.75  0.36  0.43  0.64  0.53 0.59 0.64  0.45 0.55  1.00
+\end{verbatim}
+} 
+
+Cluster 2 ($n_2=30$)
+{\footnotesize
+\begin{verbatim}
+       CP75  PR75  CL75 AoP75  FFE75 FCM75 CP95 PR95 CL95 AoP95 FFE95 FCM95
+CP75   1.00  0.93  0.79 -0.05 -0.03 -0.09  0.49 0.40 0.32  0.23 0.29  0.38
+PR75   0.93  1.00  0.91 -0.05 -0.03  0.04  0.45 0.39 0.32  0.23 0.21  0.51
+CL75   0.79  0.91  1.00 -0.05  0.09  0.05  0.40 0.40 0.32  0.23 0.19  0.53
+AoP75 -0.05 -0.05 -0.05  1.00  0.40  0.18  0.20 0.36 0.49  0.78 0.46  0.37
+FFE75 -0.03 -0.03  0.09  0.40  1.00  0.39  0.42 0.45 0.56  0.36 0.61  0.48
+FCM75 -0.09  0.04  0.05  0.18  0.39  1.00  0.32 0.49 0.45  0.16 0.41  0.69
+CP95   0.49  0.45  0.40  0.20  0.42  0.32  1.00 0.63 0.66  0.31 0.52  0.54
+PR95   0.40  0.39  0.40  0.36  0.45  0.49  0.63 1.00 0.86  0.45 0.66  0.70
+CL95   0.32  0.32  0.32  0.49  0.56  0.45  0.66 0.86 1.00  0.60 0.74  0.73
+AoP95  0.23  0.23  0.23  0.78  0.36  0.16  0.31 0.45 0.60  1.00 0.64  0.45
+FFE95  0.29  0.21  0.19  0.46  0.61  0.41  0.52 0.66 0.74  0.64 1.00  0.54
+FCM95  0.38  0.51  0.53  0.37  0.48  0.69  0.54 0.70 0.73  0.45 0.54  1.00 
+\end{verbatim}
+}
+
+Cluster 3 ($n_2=16$)
+{\footnotesize
+\begin{verbatim} 
+       CP75  PR75  CL75 AoP75  FFE75 FCM75 CP95  PR95  CL95 AoP95  FFE95 FCM95
+CP75   1.00  0.85  0.71  0.55  0.61  0.60  0.22  0.05  0.06 -0.07 -0.52 -0.74
+PR75   0.85  1.00  0.86  0.54  0.52  0.65  0.21  0.04  0.06 -0.12 -0.67 -0.57
+CL75   0.71  0.86  1.00  0.50  0.32  0.50  0.15  0.04  0.22  0.01 -0.71 -0.54
+AoP75  0.55  0.54  0.50  1.00  0.60  0.68 -0.35 -0.62 -0.49  0.54 -0.38 -0.07
+FFE75  0.61  0.52  0.32  0.60  1.00  0.82 -0.06 -0.13 -0.22  0.14 -0.48 -0.16
+FCM75  0.60  0.65  0.50  0.68  0.82  1.00 -0.04 -0.34 -0.35  0.01 -0.64 -0.09
+CP95   0.22  0.21  0.15 -0.35 -0.06 -0.04  1.00  0.63  0.48 -0.55 -0.35 -0.68
+PR95   0.05  0.04  0.04 -0.62 -0.13 -0.34  0.63  1.00  0.88 -0.53 -0.15 -0.48
+CL95   0.06  0.06  0.22 -0.49 -0.22 -0.35  0.48  0.88  1.00 -0.29 -0.19 -0.51
+AoP95 -0.07 -0.12  0.01  0.54  0.14  0.01 -0.55 -0.53 -0.29  1.00  0.16  0.19
+FFE95 -0.52 -0.67 -0.71 -0.38 -0.48 -0.64 -0.35 -0.15 -0.19  0.16  1.00  0.33
+FCM95 -0.74 -0.57 -0.54 -0.07 -0.16 -0.09 -0.68 -0.48 -0.51  0.19  0.33  1.00 
+\end{verbatim}
+}
+Those states belong to te first cluster, where high political freedom goes together with high  economical freedom and the development of both go parallel. In cluster two there is some contradiction between the two kinds of freedom in 1975 but not more in 1995. Cluster three gathers the states with contradictory development. Low political freedom in 1975 goes together with high economical freedom in 1995 and economical freedom in 1975 is different from that in 1995. Altogether the development differs to much to built just one model for all states.
+ 
+\linenumbers*[1] 
+\begin{verbatim}
+  library(cbsem)   
+  dat <- data(poloecfree) 
+  dat <- dat[,-(c(1,2)]
+  indicatorx <-c(1,1,1,2,2,2)
+  indicatory <-c(1,1,1,2,2,2) 
+  B = matrix(c(0, 0, 0, 0,
+               0, 0, 0, 0,
+               1, 1, 0, 0,
+               1, 1, 0, 0),4,4,byrow=T)
+  out <- clustergscairls(dat,B,indicatorx,indicatory,loadingx=TRUE,
+                                   loadingy=TRUE,3,6,1)
+\end{verbatim}
+\nolinenumbers 
+\end{example}
+
+ 
+
+\subsection{Selection of the number of segments} 
+\label{sec:1.3}
+
+A method for choosing the number of segments uses Akaike's information criterion AIC.  The AIC is an estimator of the relative quality of statistical models for a given set of data. Another approach to determine a suitable number of segments uses a sequence of tests. For two partitions with $g$ and $g+1$ segments one may consider the hypotheses that the data came from model with $g$ segments  and that they came from the model with $g+1$ segments. 
+
+We do not test these two hypotheses. Instead we consider an one-dimensio\-nal parameter  $\theta$ and state as null hypothesis $H^\prime_0: \theta = 0$, such that  $\theta=R^2_{W,g+1}-R^2_{W,g}$. $R^2_{W,g}$ is the weighted average of the $g$ averages of the coefficients of determination for the regressions in the structural model. As alternative we choose $H^\prime_1: \theta>0$. The reason to use one-sided hypotheses comes from the fact that the adjusted determination coefficient decreases only slowly when more regressors are included. Therefore we will use more clusters only if there is a significant improvement in the fit. The test is performed with the help of a bootstrap-confidence interval for $\theta$. We use the basic bootstrap confidence limits  with an adjustment based on the double bootstrap, see Davison and Hinkley (1997, pp. 223-226). The null hypothesis $H_0: \theta=0$ is rejected when the lower confidence limit is greater than zero.    
+
+
+The hypotheses  are considered to be non-nested. Cox (1961, 1962) developed a variant of likelihood ratio test for non-nested hypotheses. This has been the basis of the development of various other tests, see Davidson and MacKinnon (2004). The problem is that the test results  may not be consistent. It is possible that the tests reject both, neither, or either one of the hypotheses $H_1$ and $H_2$. This goes along with the possibility that the data generating process is different from the two models under consideration. On the other hand, since the bootstrap test employed here only evaluates if a model has a significantly higher explanatory power than the other model, there is no possibility of inconsistent results.  
+ 
+\begin{example}
+The last example will be continued. To decide about the number of clusters two tests were performed. The index of $\theta_{g}$ gives the number of clusters.
+
+\begin{tabular}{cc}
+ $\theta_{1} - \theta_{2}$: &  $[-0.2499, -0.0837]$ \\
+ $\theta_{2} - \theta_{3}$: &  $[-0.8620, -0.3761]$ \\
+\end{tabular}
+
+Therefore, a two cluster solution is superior to a single model but a three cluster solution is even better. A clustering with four cluster  was not considered because the clusters became too small to perform the estimation.
+
+The code of the last example is continued. Then  the first comparison is performed as follows. 
+
+\linenumbers 
+\begin{verbatim} 
+  member1 <-rep(1,91)
+  out <- clustergscairls(dat,B,indicatorx,indicatory,loadingx=TRUE,
+                                   loadingy=TRUE,2,6,1)
+  member2 <- out$member 
+  boottestgscm(dat,B,indicatorx,indicatory,loadingx=TRUE,loadingy
+                        =TRUE,member1,member2,0.1,inner=FALSE)   
+\end{verbatim}
+\nolinenumbers
+
+\end{example}  
+
+\section*{References}
+
+ 
+\markboth{References}{References}
+\addcontentsline{toc}{section}{References}   
+
+\setlength{\parindent}{0cm}
+ 
+Aguirre-Urreta M, Marakas GM, Ellis ME  (2013) 
+Measurement of Composite Reliability in Research Using Partial Least Squares: Some Issues and an Alternative Approach, 
+The DATA BASE for Advances in Information Systems 44,  11 -- 43
+ 
+ Aguirre-Urreta M, Rönkkö M (20017) Statistical Inference with PLSc Using Bootstrap Confidence Intervals,
+MIS Quarterly, 43, 1 -- 52  \\
+URL www.researchgate.net/publication/315690307\_Statistical\_Inference\_with\_PLSc\_ Using \_Bootstrap\_Confidence\_Intervals
+ 
+Albers S,  Hildebrandt L (2006)
+Methodische Probleme bei der Erfolgsfaktorenforschung : Messfehler, formative versus reflektive Indikatoren und die Wahl des Strukturgleichungs-Modells. Schmalenbachs Zeitschrift für betriebswirtschaftliche Forschung 58:   2 -- 33
+ 
+Becker  J-M, Rai A,  Rigdon E (2013) Predictive Validity and Formative Measurement in Structural Equation Modeling: Embracing Practical Relevance. Proceedings of the Thirty Fourth International Conference on Information Systems.  \\
+URL http://aisel.aisnet.org/icis2013/proceedings/ResearchMethods/5/ 
+ 
+Bergami M, Bagozzi RP (2000) Self-categorization, affective commitment and group 
+self-esteem as distinct aspects of social identity in the organization. British Journal of Social Psychology 39, 555--577
+ 
+Burlander R (2008) Customer-Reationship-Management-Systeme unter Nutzung mobiler Endger\"{a}te. Universit\"{a}sverlag, Karlsruhe
+ 
+% Byrd, R. H., Lu, P., Nocedal, J. and Zhu, C. (1995) A limited memory algorithm for bound constrained optimization. SIAM J. Scientific Computing, 16, 1190–1208. 
+ 
+Chin WW, Newsted PR (1999): Structural Equation Modeling Analysis with Small Samples Using Partial Least Squares 
+in: R.H. Hoyle: Statistical strategies for small sample research 1999, Sage Publications, Thousand Oaks 	pp. 307 -- 341
+ 
+Dijkstra TK, Henseler J  (2015) Consistent  partial  least  squares  path  modeling. MIS Quaterly   39: 297 -- 316 
+ 
+Eberl M, von Mitschke-Collande D (2006) Die Vertr\"{a}glichkeit kovarianz- und 
+varianz\-basierter Sch\"{a}tzverfahren für Strukturgleichungsmodelle - Eine Simulationsstudie. M\"{u}nchner Betriebs\-wirtschaft\-liche Beiträge, 	06/2006, M\"{u}nchen 
+ 
+Dyson F (2004)  A meeting with Enrico Fermi. Nature 427: 297 
+ 
+Hair JF, Hult GTM, Ringle CM, Sarstedt M, Thiele KO (2017) Mirror, mirror on the wall: a comparative evaluation of composite-based structural equation modeling methods. Journal of the Academy of Marketing Science (JAMS). doi: 10.1007/s11747-017-0517-x.
+ 
+Henseler J, Dijkstra TK,  Sarstedt M, Ringle CM, Diamantopoulos A,  Straub DW, Ketchen Jr. DJ, Hair JF,
+Hult GTM, and Calantone RJ (2014) Common Beliefs and Reality About PLS: Comments on
+R\"{o}nkk\"{o} and Evermann (2013) Organizational Research Methods  1-28. \\ doi: 10.1177/1094428114526928
+ 
+Hwang H (2011) GeSCA Manual. URL: www.sem-gesca.org/GeSCA\_Manual.pdf 
+ 
+Hwang H and Takane Y (2004) Generalized structured component analysis. Psychometrika 69: 81 -- 99
+ 
+Hwang H, Malhotra NK,  Kim Y, Tomiuk MA, Hong S (2010)  A Comparative Study on Parameter Recovery of Three Approaches to Structural Equation Modeling. Journal of Marketing Research 47: 699 -- 712 
+ 
+J\"{o}reskog KG, S\"{o}rbom D (1989) LISREL 7-A guide to the program and applications. $2^{nd}$ edition.  SPSS Publications, Chicago
+ 
+J\"{o}reskog KG, Wold H. (Eds.) (1982) Systems under indirect observation: Causality - structure - prediction.North Holland,  Amsterdam
+ 
+Lohm\"{o}ller J (1989) Latent Variable Path Modelling with Partial Least Squares. Physica, Heidelberg 
+ 
+Lu IRR, Kwan E, Thomas DR, Cedzynski M (2011): 
+Two new methods for estimating structural equation models: An illustration and a comparison with two established methods
+Intern. J. of Research in Marketing 28 (2011) 258 -- 268
+  
+Qureshi I, Compeau D (2009): Assessing Between-Group Differences in Information Systems Research: A Comparison of Covariance- and Component-Based SEM,  MIS Quarterly, Vol. 33, 197 -- 214
+ 
+Reinartz W,  Haenlein M, Henseler J (2009)  An empirical comparison of the efficacy of covari\-ance-based and variance-based SEM,
+Intern. J. of Research in Marketing 26, 332 -- 344
+ 
+ Ringle CM (2005) personal communication
+ 
+Sanchez G  (2013) PLS Path Modeling with R. URL: http://gastonsanchez.com
+  
+Schlittgen R (2018) Estimation  of generalized structured component analysis models with alternating least squares. Computational Statistics. 33,  
+527 -- 548 
+ 
+Schlittgen R  Ringle CM   Sarstedt M Becker  J-M (2016) Segmentation of PLS path models by iterative reweighted regressions, Journal of Business Research, 69, 4583-4592, \\  http://dx.doi.org/10.1016/j.jbusres.2016.04.009
+ 
+Scholing E Timmermann V (2000) Der Zusammenhang zwischen politischer und ökonomischer Freiheit: Eine empirische Untersuchung, Swiss Journal of Economics and Statistics, 136, 1 -- 23 
+ 
+Schuberth F Henseler J Dijkstra T (2018) Partial least squares path modeling using ordinal categorical indicators Quality \& Quantity 52,  9 -– 35 
+ https://doi.org/10.1007/s11135-016-0401-7
+ 
+Tenenhaus M (2008) Component-based structural equation modelling. No 887, Les Cahiers de Recherche from HEC Paris.
+ 
+Wold H (1982) Soft Modeling: The Basic Design and Some Extensions. In: J\"{o}reskog KG, Wold H (eds) Systems Under Indirect Observations: Part II. Amsterdam: North-Holland:  1 -- 54
+  
+
+\end{document} 
+
+
+\begin{table}[h]
+\caption{Estimation results for examples from literature \label{tab:vergl2} }
+\small
+\begin{tabular}{cccccccc} 
+               && \multicolumn{3}{c}{without bbc.}   &  \multicolumn{3}{c}{with  bbc.} \\
+example & weights  & $\beta$s & $\lambda$s & fit &  $\beta$s  & $\lambda$s & fit  \\  
+\hline   
+1a     &  extended & 0.1098 & 0.0985 & 0.5835 & 0.0457 & 0.0346 & 0.5722 \\
+       &  standard & 0.1466 & 0.1078 & 0.5734 & 0.1410 & 0.1054 & 0.5711 \\
+1b     &  extended & 0.1208 & 0.1034 & 0.5832 & 0.0573 & 0.0449 & 0.5720 \\
+       &  standard & 0.1525 & 0.1126 & 0.5735 & 0.1579 & 0.1126 & 0.5718 \\
+2a     &  extended & 0.0734 & 0.1074 & 0.3876 & 0.0457 & 0.0341 & 0.3814 \\
+       &  standard & 0.0782 & 0.1077 & 0.3874 & 0.0704 & 0.1073 & 0.3813 \\
+2b     &  extended & 0.0491 & 0.0705 & 0.4920 & 0.0194 & 0.0160 & 0.4879 \\
+       &  standard & 0.0520 & 0.0706 & 0.4918 & 0.0490 & 0.0712 & 0.4901 \\
+2c     &  extended & 0.0376 & 0.0469 & 0.6443 & 0.0152 & 0.0130 & 0.6412 \\    
+       &  standard & 0.0400 & 0.0470 & 0.6442 & 0.0420 & 0.0496 & 0.6437 \\
+3      &  extended & 0.2968 & 0.5429 & 0.7782 & 0.2864 & 0.5171 & 0.7764 \\ 
+       &  standard & 0.2968 & 0.5429 & 0.7781 & 0.2933 & 0.5440 & 0.7777 \\ 
+4      &  extended & 0.0784 & 0.0910 & 0.4742 & 0.0321 & 0.0281 & 0.4624 \\
+       &  standard & 0.0784 & 0.0910 & 0.4742 & 0.0736 & 0.0918 & 0.4699 \\
+5      &  extended & 0.0137 & 0.0448 & 0.6232 & 0.0050 & 0.0124 & 0.6171 \\  
+       &  standard & 0.0195 & 0.0474 & 0.6197 & 0.0141 & 0.0491 & 0.6187 \\
+6      &  extended & 0.0691 & 0.0633 & 0.6019 & 0.0245 & 0.0214 & 0.5971 \\  
+       &  standard & 0.0765 & 0.0660 & 0.5982 & 0.0810 & 0.0652 & 0.5940 \\
+7      &  extended & 0.0717 & 0.0632 & 0.6849 & 0.0231 & 0.0320 & 0.6774 \\
+       &  standard & 0.0413 & 0.0670 & 0.6787 & 0.0449 & 0.0645 & 0.6779 \\ 
+8      &  extended & 0.0404 & 0.1102 & 0.3389 & 0.0333 & 0.0352 & 0.3259 \\
+       &  standard & 0.0599 & 0.1112 & 0.3382 & 0.0741 & 0.1144 & 0.3344 \\ 
+9      &  extended & 0.0471 & 0.0783 & 0.5814 & 0.0296 & 0.0327 & 0.5756 \\
+       &  standard & 0.0501 & 0.0786 & 0.5809 & 0.0504 & 0.0812 & 0.5794 \\
+10     &  extended & 0.0934 & 0.0680 & 0.5690 & 0.0934 & 0.0671 & 0.5691 \\
+       &  standard & 0.0937 & 0.0682 & 0.5692 & 0.0949 & 0.0683 & 0.5691 \\
+11     &  extended & 0.0699 & 0.0879 & 0.5074 & 0.0691 & 0.0864 & 0.5074 \\
+       &  standard & 0.0693 & 0.0876 & 0.5074 & 0.0694 & 0.0873 & 0.5073 \\ 
+12     &  extended & 0.0437 & 0.0568 & 0.5428 & 0.0442 & 0.0560 & 0.5427 \\
+       &  standard & 0.0442 & 0.0569 & 0.5428 & 0.0453 & 0.0569 & 0.5427 \\
+13     &  extended & 0.2086 & 0.0696 & 0.5719 & 0.2038 & 0.0687 & 0.5719 \\
+       &  standard & 0.2041 & 0.0697 & 0.5719 & 0.2041 & 0.0697 & 0.5719 \\
+\hline                                         
+\end{tabular}
+\end{table} 
+
+
